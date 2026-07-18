@@ -10,6 +10,31 @@ import {
   sendChatMessage,
   clearSession
 } from '../services/api';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Bar, Line, Pie } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
@@ -20,8 +45,8 @@ const INITIAL_MESSAGE = {
   timestamp: new Date(),
 };
 
-export default function ChatWindow() {
-  const [userName, setUserName] = useState(localStorage.getItem('enterprise_user_name') || '');
+export default function ChatWindow({ user, onLogout }) {
+  const [userName, setUserName] = useState(user?.display_name || 'Admin');
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -33,6 +58,10 @@ export default function ChatWindow() {
   const [activeChart, setActiveChart] = useState(null);
   const [queryMetrics, setQueryMetrics] = useState(null);
   const [activeTab, setActiveTab] = useState('Chat');
+  
+  // Chart Modal State
+  const [isChartModalOpen, setIsChartModalOpen] = useState(false);
+  const [modalChartType, setModalChartType] = useState('bar');
 
   // Audio state
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -44,8 +73,24 @@ export default function ChatWindow() {
 
   // Analytics & History state
   const [queryHistory, setQueryHistory] = useState([]);
-  const [savedReports, setSavedReports] = useState(JSON.parse(localStorage.getItem('enterprise_saved_reports') || '[]'));
+  const [savedReports, setSavedReports] = useState([]);
   
+  useEffect(() => {
+    const fetchSavedQueries = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/saved-queries`);
+        const data = await response.json();
+        setSavedReports(data.map(q => ({
+          id: q.id,
+          query: q.query,
+          sql: q.sql,
+          timestamp: new Date(q.timestamp),
+          status: 'success'
+        })));
+      } catch (err) { console.error('Failed to fetch saved queries', err); }
+    };
+    fetchSavedQueries();
+  }, []);
   // UI State
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
@@ -67,6 +112,13 @@ export default function ChatWindow() {
     currentAudioRef.current = null;
     setIsPlayingAudio(false);
   }, []);
+
+  const openChartModal = (chart) => {
+    if (!chart) return;
+    setActiveChart(chart);
+    setModalChartType(chart.type || 'bar');
+    setIsChartModalOpen(true);
+  };
 
   const handleInputChange = (e) => {
     setInput(e.target.value);
@@ -112,6 +164,8 @@ export default function ChatWindow() {
         sql: result.sql,
         chart: result.chart,
         audio_url: result.audio_url,
+        data_columns: result.data_columns,
+        data_rows: result.data_rows,
         timestamp: new Date(),
         isSafe: result.sql ? true : undefined,
       };
@@ -203,28 +257,28 @@ export default function ChatWindow() {
     }
   };
 
-  const toggleSaveReport = (queryRecord) => {
-    setSavedReports(prev => {
-      const isSaved = prev.some(r => r.id === queryRecord.id);
-      let updated;
-      if (isSaved) {
-        updated = prev.filter(r => r.id !== queryRecord.id);
-      } else {
-        updated = [queryRecord, ...prev];
-      }
-      localStorage.setItem('enterprise_saved_reports', JSON.stringify(updated));
-      return updated;
-    });
+  const toggleSaveReport = async (queryRecord) => {
+    const isSaved = savedReports.some(r => r.id === queryRecord.id);
+    if (isSaved) {
+      setSavedReports(prev => prev.filter(r => r.id !== queryRecord.id));
+      try {
+        await fetch(`${API_BASE}/saved-queries/${queryRecord.id}`, { method: 'DELETE' });
+      } catch (err) { console.error(err); }
+    } else {
+      setSavedReports(prev => [queryRecord, ...prev]);
+      try {
+        await fetch(`${API_BASE}/saved-queries`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: queryRecord.id, query: queryRecord.query, sql: queryRecord.sql || '' })
+        });
+      } catch (err) { console.error(err); }
+    }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('enterprise_user_name');
+  const handleLogoutClick = () => {
     clearSession(sessionIdRef.current);
-    setUserName('');
-    setMessages([]);
-    setQueryHistory([]);
-    setSavedReports([]);
-    setShowProfileMenu(false);
+    if (onLogout) onLogout();
   };
 
   // Load database tables when Database tab is selected
@@ -576,12 +630,12 @@ export default function ChatWindow() {
           
           <div className="suggestion-grid">
             {[
-              { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>, text: "Sales Report" },
-              { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>, text: "Revenue Trends" },
-              { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>, text: "Employee Salary" },
-              { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>, text: "Customer Analytics" }
+              { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>, text: "Sales Report", colorClass: 'suggestion-blue' },
+              { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>, text: "Revenue Trends", colorClass: 'suggestion-green' },
+              { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>, text: "Employee Salary", colorClass: 'suggestion-purple' },
+              { icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>, text: "Customer Analytics", colorClass: 'suggestion-orange' }
             ].map((s, i) => (
-              <div key={i} className="suggestion-card glass-panel glass-panel-hover" onClick={() => handleSend(`Show me a ${s.text.toLowerCase()}`)}>
+              <div key={i} className={`suggestion-card ${s.colorClass}`} onClick={() => handleSend(`Show me a ${s.text.toLowerCase()}`)}>
                 <div className="suggestion-icon">{s.icon}</div>
                 <span className="suggestion-text">{s.text}</span>
               </div>
@@ -674,7 +728,7 @@ export default function ChatWindow() {
               display: 'flex',
               flexDirection: 'column'
             }}>
-              <div className="menu-item" style={{ padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', color: '#ff4d4d', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={handleLogout}>
+              <div className="menu-item" style={{ padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', color: '#ff4d4d', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={handleLogoutClick}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 Sign Out
               </div>
@@ -805,17 +859,63 @@ export default function ChatWindow() {
             </div>
 
             {/* Card 2: Interactive Chart */}
-            {activeChart && activeChart.base64_image && (
-              <div className="insight-card glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
+            {activeChart && activeChart.type && (
+              <div 
+                className="insight-card glass-panel" 
+                style={{ padding: '0', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s' }}
+                onClick={() => openChartModal(activeChart)}
+                title="Click to expand details"
+              >
                 <div style={{ padding: '16px 16px 0 16px' }} className="panel-title">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                   Visualization
                 </div>
-                <img 
-                  src={`data:image/png;base64,${activeChart.base64_image}`} 
-                  alt="Chart" 
-                  style={{ width: '100%', display: 'block', mixBlendMode: 'screen' }} 
-                />
+                <div style={{ padding: '16px' }}>
+                  {activeChart.type === 'bar' && (
+                    <Bar 
+                      data={{
+                        labels: activeChart.labels,
+                        datasets: [{
+                          label: activeChart.datasets[0].label,
+                          data: activeChart.datasets[0].data,
+                          backgroundColor: 'rgba(0, 229, 255, 0.6)',
+                          borderColor: '#00E5FF',
+                          borderWidth: 1,
+                        }]
+                      }} 
+                      options={{ responsive: true, plugins: { legend: { display: false }, title: { display: true, text: activeChart.title, color: '#fff' } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#8A9BAE' }, grid: { display: false } } } }}
+                    />
+                  )}
+                  {activeChart.type === 'line' && (
+                    <Line 
+                      data={{
+                        labels: activeChart.labels,
+                        datasets: [{
+                          label: activeChart.datasets[0].label,
+                          data: activeChart.datasets[0].data,
+                          borderColor: '#00E5FF',
+                          backgroundColor: 'rgba(0, 229, 255, 0.2)',
+                          tension: 0.4,
+                          fill: true
+                        }]
+                      }} 
+                      options={{ responsive: true, plugins: { legend: { display: false }, title: { display: true, text: activeChart.title, color: '#fff' } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#8A9BAE' }, grid: { display: false } } } }}
+                    />
+                  )}
+                  {activeChart.type === 'pie' && (
+                    <Pie 
+                      data={{
+                        labels: activeChart.labels,
+                        datasets: [{
+                          data: activeChart.datasets[0].data,
+                          backgroundColor: ['#00E5FF', '#00FFAA', '#00FFCC', '#00BFFF', '#0080FF'],
+                          borderWidth: 0,
+                        }]
+                      }} 
+                      options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#8A9BAE' } }, title: { display: true, text: activeChart.title, color: '#fff' } } }}
+                    />
+                  )}
+                </div>
               </div>
             )}
 
@@ -881,6 +981,71 @@ export default function ChatWindow() {
           </>
         )}
       </aside>
+
+      {/* ===== CHART DETAIL MODAL ===== */}
+      {isChartModalOpen && activeChart && (
+        <div className="chart-modal-overlay" onClick={() => setIsChartModalOpen(false)}>
+          <div className="chart-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="chart-modal-header">
+              <div className="chart-modal-title">{activeChart.title}</div>
+              <button className="modal-close-btn" onClick={() => setIsChartModalOpen(false)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="24" height="24">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="chart-modal-body">
+              <div className="chart-type-toggles">
+                <button 
+                  className={`chart-toggle-btn ${modalChartType === 'bar' ? 'active' : ''}`}
+                  onClick={() => setModalChartType('bar')}
+                >Bar Chart</button>
+                <button 
+                  className={`chart-toggle-btn ${modalChartType === 'line' ? 'active' : ''}`}
+                  onClick={() => setModalChartType('line')}
+                >Line Chart</button>
+                <button 
+                  className={`chart-toggle-btn ${modalChartType === 'pie' ? 'active' : ''}`}
+                  onClick={() => setModalChartType('pie')}
+                >Pie Chart</button>
+              </div>
+              
+              <div style={{ height: '350px', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                {modalChartType === 'bar' && (
+                  <Bar data={{ labels: activeChart.labels, datasets: [{ label: activeChart.datasets[0].label, data: activeChart.datasets[0].data, backgroundColor: 'rgba(0, 229, 255, 0.6)', borderColor: '#00E5FF', borderWidth: 1 }]}} options={{ maintainAspectRatio: false, responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#8A9BAE' }, grid: { display: false } } } }} />
+                )}
+                {modalChartType === 'line' && (
+                  <Line data={{ labels: activeChart.labels, datasets: [{ label: activeChart.datasets[0].label, data: activeChart.datasets[0].data, borderColor: '#00E5FF', backgroundColor: 'rgba(0, 229, 255, 0.2)', tension: 0.4, fill: true }]}} options={{ maintainAspectRatio: false, responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#8A9BAE' }, grid: { display: false } } } }} />
+                )}
+                {modalChartType === 'pie' && (
+                  <Pie data={{ labels: activeChart.labels, datasets: [{ data: activeChart.datasets[0].data, backgroundColor: ['#00E5FF', '#00FFAA', '#00FFCC', '#00BFFF', '#0080FF'], borderWidth: 0 }]}} options={{ maintainAspectRatio: false, responsive: true, plugins: { legend: { position: 'right', labels: { color: '#8A9BAE' } } } }} />
+                )}
+              </div>
+
+              {/* Data Table */}
+              <div style={{ marginTop: '20px' }}>
+                <div className="panel-title">Raw Data</div>
+                <table className="chart-data-table">
+                  <thead>
+                    <tr>
+                      <th>Category</th>
+                      <th>{activeChart.datasets[0].label}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeChart.labels.map((label, idx) => (
+                      <tr key={idx}>
+                        <td>{label}</td>
+                        <td>{activeChart.datasets[0].data[idx].toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

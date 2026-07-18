@@ -86,7 +86,7 @@
   background: rgba(13, 21, 31, 0.7);
   border-radius: 4px 20px 20px 20px;
   border: 1px solid var(--glass-border);
-  color: var(--text-secondary);
+  color: var(--text-primary);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   box-shadow: var(--shadow-soft);
@@ -200,6 +200,18 @@
   color: #fff;
   background: rgba(0, 229, 255, 0.15);
   box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+}
+
+.export-btn {
+  display: flex;
+  align-items: center;
+  color: var(--accent-magenta);
+}
+
+.export-btn:hover {
+  color: #fff;
+  background: rgba(255, 0, 255, 0.15);
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.2);
 }
 
 /* ===== SQL PREVIEW BLOCK ===== */

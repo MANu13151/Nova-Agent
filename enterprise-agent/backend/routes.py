@@ -11,6 +11,55 @@ import json
 
 router = APIRouter(prefix="/api")
 
+# --- AUTH & SAVED QUERIES ---
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+@router.post("/auth/login")
+async def login(req: LoginRequest):
+    conn = get_db_connection()
+    user = conn.execute("SELECT * FROM users WHERE username = ? AND password = ?", (req.username, req.password)).fetchone()
+    conn.close()
+    if user:
+        return {"token": f"mock-jwt-token-{user['id']}", "user": dict(user)}
+    raise HTTPException(status_code=401, detail="Invalid username or password")
+
+class SavedQuery(BaseModel):
+    id: str
+    query: str
+    sql: str = None
+
+@router.get("/saved-queries")
+async def get_saved_queries():
+    conn = get_db_connection()
+    queries = conn.execute("SELECT * FROM saved_queries ORDER BY timestamp DESC").fetchall()
+    conn.close()
+    return [dict(q) for q in queries]
+
+@router.post("/saved-queries")
+async def save_query(q: SavedQuery):
+    conn = get_db_connection()
+    try:
+        conn.execute("INSERT INTO saved_queries (id, query, sql) VALUES (?, ?, ?)", (q.id, q.query, q.sql))
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "success"}
+
+@router.delete("/saved-queries/{query_id}")
+async def delete_saved_query(query_id: str):
+    conn = get_db_connection()
+    conn.execute("DELETE FROM saved_queries WHERE id = ?", (query_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+# -----------------------------
+
 class ChatRequest(BaseModel):
     message: str
     session_id: str = "default"

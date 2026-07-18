@@ -107,6 +107,8 @@ def orchestrate_message(user_message: str, session_id: str, user_name: str = "Us
                 # Check for chart compatibility
                 chart_config = generate_chart_config(columns, rows, sql_query)
                 response_payload["chart"] = chart_config
+                response_payload["data_columns"] = columns
+                response_payload["data_rows"] = rows
                 
                 # Ask LLM to summarize verbally
                 formatter_prompt = RESPONSE_FORMATTER_PROMPT.format(

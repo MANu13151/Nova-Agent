@@ -3,14 +3,14 @@
 :root {
   /* Neurovia Deep Teal Theme */
   --bg-primary: #060A0F;
-  --bg-secondary: #0D151F;
-  --bg-tertiary: #121D2B;
+  --bg-secondary: #0F172A; /* Distinct slate blue */
+  --bg-tertiary: #1E293B;
   
   /* Glass and Surfaces */
-  --glass-surface: rgba(255, 255, 255, 0.02);
-  --glass-surface-hover: rgba(255, 255, 255, 0.05);
-  --glass-border: rgba(255, 255, 255, 0.06);
-  --glass-border-light: rgba(0, 229, 255, 0.2);
+  --glass-surface: rgba(255, 255, 255, 0.05);
+  --glass-surface-hover: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-border-light: rgba(0, 229, 255, 0.5);
   
   /* Accents - Cyan / Teal */
   --accent-gold: #00E5FF; /* Renamed gold variable to hold Cyan for ease of migration */
@@ -21,9 +21,9 @@
   --accent-green: #00FFAA;
   
   /* Typography Colors */
-  --text-primary: #F0F4F8;
-  --text-secondary: #8A9BAE;
-  --text-tertiary: #5C7085;
+  --text-primary: #FFFFFF;
+  --text-secondary: #A0B3C6;
+  --text-tertiary: #6E859C;
   
   /* Typography Settings */
   --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;

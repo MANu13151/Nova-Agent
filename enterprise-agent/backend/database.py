@@ -18,6 +18,7 @@ def init_db():
     cursor = conn.cursor()
 
     # Drop existing tables in correct order of dependency
+    cursor.execute("DROP TABLE IF EXISTS saved_queries")
     cursor.execute("DROP TABLE IF EXISTS sales")
     cursor.execute("DROP TABLE IF EXISTS employees")
     cursor.execute("DROP TABLE IF EXISTS departments")
@@ -92,9 +93,19 @@ def init_db():
     CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
         display_name TEXT NOT NULL,
         role TEXT DEFAULT 'analyst',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE saved_queries (
+        id TEXT PRIMARY KEY,
+        query TEXT NOT NULL,
+        sql TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     """)
 
@@ -129,12 +140,12 @@ def init_db():
 
     # 3. Users
     users = [
-        ("admin", "Administrator", "admin"),
-        ("manu", "Manu", "analyst"),
-        ("teja", "Teja", "analyst"),
-        ("guest", "Guest", "viewer"),
+        ("admin", "admin123", "Administrator", "admin"),
+        ("manu", "password", "Manu", "analyst"),
+        ("teja", "password", "Teja", "analyst"),
+        ("guest", "guest", "Guest", "viewer"),
     ]
-    cursor.executemany("INSERT INTO users (username, display_name, role) VALUES (?, ?, ?)", users)
+    cursor.executemany("INSERT INTO users (username, password, display_name, role) VALUES (?, ?, ?, ?)", users)
 
     # Use a fixed random seed to generate realistic and reproducible mock data
     random.seed(42)
@@ -252,7 +263,7 @@ def init_db():
 
     conn.commit()
     conn.close()
-    print(f"Database initialized and seeded with 6 tables at: {DATABASE_PATH}")
+    print(f"Database initialized and seeded with tables at: {DATABASE_PATH}")
 
 if __name__ == "__main__":
     init_db()

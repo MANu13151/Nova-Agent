@@ -66,7 +66,7 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
           const recognition = new SpeechRecognition();
-          recognition.continuous = false;
+          recognition.continuous = true;
           recognition.interimResults = true;
           recognition.lang = 'en-US';
 
@@ -139,15 +139,17 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
             setIsListening(false);
             
             if (manualModeRef.current) {
-              // If we are in active mode waiting for a command, restart immediately, no cooldown
+              // If we are in active mode waiting for a command, restart smoothly
               setTimeout(() => {
-                try {
-                  if (!isListeningRef.current) {
+                if (!isListeningRef.current && recognitionRef.current) {
+                  try {
                     isListeningRef.current = true;
-                    recognition.start();
+                    recognitionRef.current.start();
+                  } catch(e) {
+                    isListeningRef.current = false;
                   }
-                } catch(e) {}
-              }, 100);
+                }
+              }, 400);
             } else {
               // Otherwise, apply cooldown to prevent rapid restarts from background noise
               setTimeout(() => setIsNovaActive(false), 1500);
@@ -187,6 +189,7 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
                 voiceFrames = 0;
               } catch (e) {
                 // Already running or other error, reset
+                isListeningRef.current = false;
                 voiceFrames = 0;
               }
             }
@@ -230,7 +233,9 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
         isListeningRef.current = true;
         recognitionRef.current.start(); 
       }
-    } catch(e){}
+    } catch(e) {
+      isListeningRef.current = false;
+    }
   }, []);
 
   const stopManual = useCallback(() => {

@@ -35,6 +35,36 @@ export default function MessageBubble({ message, onPlayAudio, isPlaying }) {
     }
   };
 
+  const downloadCSV = () => {
+    if (!message.data_columns || !message.data_rows) return;
+    
+    // Build CSV string
+    const headers = message.data_columns.join(',');
+    const rows = message.data_rows.map(row => 
+      row.map(cell => {
+        // Handle commas/quotes in data
+        if (cell === null || cell === undefined) return '';
+        const cellStr = String(cell);
+        if (cellStr.includes(',') || cellStr.includes('"')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(',')
+    ).join('\\n');
+    
+    const csvContent = headers + '\\n' + rows;
+    
+    // Create Blob and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'nova_export.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className={`message-row ${isUser ? 'user-row' : 'ai-row'}`}>
       
@@ -78,6 +108,17 @@ export default function MessageBubble({ message, onPlayAudio, isPlaying }) {
             >
               {isExplaining ? 'Explaining...' : (showExplanation ? 'Hide Explanation' : 'Explain')}
             </button>
+            
+            {message.data_columns && message.data_rows && (
+              <button className="text-btn export-btn" onClick={downloadCSV}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Export CSV
+              </button>
+            )}
           </div>
         )}
 
