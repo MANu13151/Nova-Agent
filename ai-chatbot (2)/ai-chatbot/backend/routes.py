@@ -1,0 +1,297 @@
+from fastapi import APIRouter, Query, HTTPException, WebSocket, WebSocketDisconnect, Header
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from typing import Optional
+from ai.orchestrator import orchestrate_message
+from ai.memory import memory_manager
+from sql.schema import get_schema_prompt_text
+from voice.tts import text_to_speech_mp3
+from voice.voice_service import process_voice_input
+from backend.database import get_db_connection
+import urllib.parse
+import json
+
+router = APIRouter(prefix="/api")
+
+class ChatRequest(BaseModel):
+    message: str
+    session_id: str = "default"
+    user_name: Optional[str] = None
+
+@router.post("/chat")
+async def chat_endpoint(req: ChatRequest, x_user_name: Optional[str] = Header(None)):
+    """
+    HTTP POST Chat endpoint. Accepts query message and session ID, returning AI explanation,
+    raw SQL data, chart configurations, and a TTS streaming URL.
+    """
+    try:
+        resolved_name = req.user_name or x_user_name or "Guest"
+        result = orchestrate_message(req.message, req.session_id, resolved_name)
+        
+        # Build audio streaming url if there's a response
+        if result.get("response"):
+            # Clean response text to exclude table figures for shorter, speech-friendly URLs
+            verbal_text = result["response"]
+            if "\n\n|" in verbal_text:
+                verbal_text = verbal_text.split("\n\n|")[0].strip()
+            elif "\n|" in verbal_text:
+                verbal_text = verbal_text.split("\n|")[0].strip()
+            
+            verbal_text = verbal_text.replace("*", "").replace("`", "").strip()
+            encoded_text = urllib.parse.quote_plus(verbal_text)
+            result["audio_url"] = f"/api/tts?text={encoded_text}"
+            
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/tts")
+async def tts_endpoint(text: str = Query(..., description="Text to convert to speech")):
+    """
+    Streams the TTS synthesized speech (MPEG/MP3) for a given text.
+    """
+    try:
+        mp3_stream = text_to_speech_mp3(text)
+        return StreamingResponse(mp3_stream, media_type="audio/mpeg")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ColumnDefinition(BaseModel):
+    name: str
+    type: str
+
+class TableDefinition(BaseModel):
+    name: str
+    columns: list[ColumnDefinition]
+    rows: list[list[str]] = []
+
+class CreateTablesRequest(BaseModel):
+    tables: list[TableDefinition]
+
+@router.post("/tables")
+async def create_tables_endpoint(req: CreateTablesRequest):
+    """
+    Creates multiple tables in the database with optional seed data.
+    """
+    if not req.tables:
+        raise HTTPException(status_code=400, detail="No tables provided.")
+
+    import re
+    def is_valid_identifier(name: str) -> bool:
+        return bool(re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', name))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        for table in req.tables:
+            # 1. Validate Table Name
+            if not is_valid_identifier(table.name):
+                raise HTTPException(status_code=400, detail=f"Invalid table name: {table.name}")
+            
+            # 2. Validate and build columns
+            col_defs = []
+            valid_types = {"TEXT", "INTEGER", "REAL", "NUMERIC", "BLOB"}
+            
+            for col in table.columns:
+                if not is_valid_identifier(col.name):
+                    raise HTTPException(status_code=400, detail=f"Invalid column name '{col.name}' in table '{table.name}'")
+                
+                col_type = col.type.upper()
+                if col_type not in valid_types:
+                    raise HTTPException(status_code=400, detail=f"Unsupported column type '{col.type}' for column '{col.name}'")
+                
+                col_defs.append(f"{col.name} {col_type}")
+
+            # 3. Create Table Query
+            create_sql = f"CREATE TABLE IF NOT EXISTS {table.name} ({', '.join(col_defs)})"
+            cursor.execute(create_sql)
+
+            # 4. Insert optional rows
+            if table.rows:
+                placeholders = ", ".join(["?"] * len(table.columns))
+                insert_sql = f"INSERT INTO {table.name} ({', '.join(c.name for c in table.columns)}) VALUES ({placeholders})"
+                
+                processed_rows = []
+                for idx, row in enumerate(table.rows):
+                    if len(row) != len(table.columns):
+                        raise HTTPException(
+                            status_code=400, 
+                            detail=f"Row {idx} in table '{table.name}' has {len(row)} values, expected {len(table.columns)}."
+                        )
+                    
+                    typed_row = []
+                    for col_idx, col in enumerate(table.columns):
+                        val = row[col_idx]
+                        col_type = col.type.upper()
+                        if val is None or val == "":
+                            typed_row.append(None)
+                        elif col_type == "INTEGER":
+                            try:
+                                typed_row.append(int(val))
+                            except ValueError:
+                                raise HTTPException(status_code=400, detail=f"Row {idx} value '{val}' is not a valid INTEGER for column '{col.name}'")
+                        elif col_type in ("REAL", "NUMERIC"):
+                            try:
+                                typed_row.append(float(val))
+                            except ValueError:
+                                raise HTTPException(status_code=400, detail=f"Row {idx} value '{val}' is not a valid REAL/NUMERIC for column '{col.name}'")
+                        else:
+                            typed_row.append(str(val))
+                    processed_rows.append(typed_row)
+
+                cursor.executemany(insert_sql, processed_rows)
+        
+        conn.commit()
+        return {"status": "success", "message": f"Successfully created/seeded {len(req.tables)} table(s)."}
+    except HTTPException as he:
+        conn.rollback()
+        raise he
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Database schema update failed: {str(e)}")
+    finally:
+        conn.close()
+
+class RawSqlRequest(BaseModel):
+    sql: str
+
+@router.post("/tables/raw")
+async def create_tables_raw_endpoint(req: RawSqlRequest):
+    """
+    Executes raw SQL DDL script to create/seed tables directly.
+    """
+    if not req.sql.strip():
+        raise HTTPException(status_code=400, detail="SQL script is empty.")
+
+    import sqlparse
+    try:
+        statements = sqlparse.parse(req.sql)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse SQL: {str(e)}")
+
+    allowed_verbs = {"CREATE", "INSERT"}
+    for statement in statements:
+        if not statement.get_type() and not statement.value.strip():
+            continue
+            
+        stmt_type = statement.get_type()
+        if stmt_type not in allowed_verbs:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Only CREATE TABLE and INSERT statements are allowed in DDL. Action '{stmt_type or 'UNKNOWN'}' is blocked."
+            )
+            
+        for token in statement.flatten():
+            token_str = token.value.lower().strip()
+            if token.is_keyword and token_str in {"drop", "delete", "update", "alter", "truncate", "pragma", "grant", "revoke"}:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Unsafe SQL detected: Keyword '{token.value}' is not allowed in table definitions."
+                )
+
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.executescript(req.sql)
+        conn.commit()
+        return {"status": "success", "message": "SQL script executed successfully and tables registered."}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"SQL script execution failed: {str(e)}")
+    finally:
+        conn.close()
+
+@router.get("/schema")
+async def schema_endpoint():
+    """
+    Returns the database schema for the frontend's information.
+    """
+    try:
+        return {"schema": get_schema_prompt_text()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/chat/session/{session_id}")
+async def clear_session_endpoint(session_id: str):
+    """
+    Resets conversation memory history for a session ID.
+    """
+    try:
+        memory_manager.clear_history(session_id)
+        return {"status": "success", "message": f"Session history for '{session_id}' cleared."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.websocket("/stream")
+async def websocket_stream_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint for low-latency duplex chat streaming and audio packet inputs.
+    """
+    await websocket.accept()
+    print("[WebSocket] Client connected to real-time session.")
+    
+    session_id = "ws_session"
+    
+    try:
+        while True:
+            # Wait for text commands or raw binary voice inputs
+            message = await websocket.receive()
+            
+            if "text" in message:
+                data = json.loads(message["text"])
+                msg_type = data.get("type")
+                
+                if msg_type == "chat":
+                    user_text = data.get("message", "")
+                    session_id = data.get("session_id", session_id)
+                    user_name = data.get("user_name", None)
+                    
+                    # Run standard orchestration
+                    res = orchestrate_message(user_text, session_id, user_name)
+                    
+                    await websocket.send_json({
+                        "type": "chat_response",
+                        "response": res["response"],
+                        "sql": res["sql"],
+                        "chart": res["chart"],
+                        "error": res["error"]
+                    })
+                    
+                elif msg_type == "interrupt":
+                    # Send immediate acknowledgment to interrupt audio playback on client
+                    print("[WebSocket] Received voice interruption signal.")
+                    await websocket.send_json({
+                        "type": "interrupted",
+                        "message": "Playback stopped."
+                    })
+                    
+            elif "bytes" in message:
+                audio_bytes = message["bytes"]
+                print(f"[WebSocket] Processing {len(audio_bytes)} audio bytes via STT/TTS pipeline.")
+                
+                # Retrieve user name from memory if available
+                user_name = memory_manager.get_user_name(session_id)
+                
+                # Process audio packet through Voice AI loop
+                res = process_voice_input(audio_bytes, session_id, user_name)
+                
+                await websocket.send_json({
+                    "type": "voice_response",
+                    "user_text": res["user_text"],
+                    "response": res["response"],
+                    "sql": res["sql"],
+                    "chart": res["chart"],
+                    "audio_b64": res["audio_b64"],
+                    "error": res["error"]
+                })
+                
+    except WebSocketDisconnect:
+        print("[WebSocket] Client disconnected.")
+    except Exception as e:
+        print(f"[WebSocket] Error occurred: {str(e)}")
+        try:
+            await websocket.close()
+        except Exception:
+            pass

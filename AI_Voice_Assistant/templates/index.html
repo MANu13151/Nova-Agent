@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Assistant</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>🤖 AI Voice Assistant</h1>
+
+        <p class="subtitle">Powered by Gemini AI</p>
+
+        <div id="chat-box">
+
+            <div class="bot-message">
+                👋 Hello! I am your AI Voice Assistant.
+            </div>
+
+        </div>
+
+        <button id="micButton">
+            🎤 Start Listening
+        </button>
+
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+
+</html>

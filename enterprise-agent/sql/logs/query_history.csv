@@ -1,0 +1,29 @@
+2026-07-07 15:31:10.240581,Show top 5 expensive products,"SELECT
+  product_name,
+  unit_price
+FROM products
+ORDER BY
+  unit_price DESC
+LIMIT 5;",5,0.004628658294677734,SUCCESS
+2026-07-07 15:31:44.025522,How many customers are there?,N/A,0,0,FAILED
+2026-07-07 15:31:57.770667,How many customers are there?,N/A,0,0,FAILED
+2026-07-07 15:32:11.420473,How many customers are there?,N/A,0,0,FAILED
+2026-07-07 15:45:55.400435,How many customers are there?,N/A,0,0,FAILED
+2026-07-07 17:06:23.004707,How many customers are there?,"SELECT
+  COUNT(customer_id)
+FROM customers;",1,0.0031280517578125,SUCCESS
+2026-07-07 17:28:29.806256,exit ,N/A,0,0,FAILED
+2026-07-07 17:28:36.008092,exit ,N/A,0,0,FAILED
+2026-07-08 10:18:36.904630,,"SELECT
+  c.company_name,
+  COUNT(o.order_id) AS total_orders
+FROM customers AS c
+JOIN orders AS o
+  ON c.customer_id = o.customer_id
+GROUP BY
+  c.customer_id,
+  c.company_name
+ORDER BY
+  c.company_name;",89,0.020897388458251953,SUCCESS
+2026-07-08 10:18:45.612223,Which category generated the highest revenue?,N/A,0,0,FAILED
+2026-07-08 10:20:04.060736,Which category generated the highest revenue?,N/A,0,0,FAILED

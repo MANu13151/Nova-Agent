@@ -1,0 +1,44 @@
+.typing-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  align-self: flex-start;
+  animation: fadeSlideUp 0.3s ease both;
+}
+
+.typing-avatar {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #0a0a0a;
+}
+
+.typing-avatar svg {
+  width: 16px;
+  height: 16px;
+}
+
+.typing-bubble {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--ai-bubble);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+  padding: 14px 18px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: pulse 1.2s ease-in-out infinite;
+  display: block;
+}

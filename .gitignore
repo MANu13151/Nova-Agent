@@ -1,0 +1,7 @@
+.env
+*.zip
+__pycache__/
+*.pyc
+
+# Ignore large ML models
+enterprise-agent/voice/vosk-model/

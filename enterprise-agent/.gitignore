@@ -1,0 +1,22 @@
+# Virtual Environment
+.venv/
+
+# Environment Variables
+.env
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+
+# Logs
+logs/query_history.csv
+logs/generated_sql.sql
+
+# Exported Files
+exports/
+
+# Local Databases
+*.db

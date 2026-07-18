@@ -1,0 +1,175 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Neurovia Deep Teal Theme */
+  --bg-primary: #060A0F;
+  --bg-secondary: #0D151F;
+  --bg-tertiary: #121D2B;
+  
+  /* Glass and Surfaces */
+  --glass-surface: rgba(255, 255, 255, 0.02);
+  --glass-surface-hover: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-border-light: rgba(0, 229, 255, 0.2);
+  
+  /* Accents - Cyan / Teal */
+  --accent-gold: #00E5FF; /* Renamed gold variable to hold Cyan for ease of migration */
+  --accent-gold-dim: rgba(0, 229, 255, 0.15);
+  --accent-gold-glow: rgba(0, 229, 255, 0.4);
+  --accent-blue: #00FFCC;
+  --accent-blue-glow: rgba(0, 255, 204, 0.3);
+  --accent-green: #00FFAA;
+  
+  /* Typography Colors */
+  --text-primary: #F0F4F8;
+  --text-secondary: #8A9BAE;
+  --text-tertiary: #5C7085;
+  
+  /* Typography Settings */
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'SF Mono', 'Roboto Mono', Menlo, monospace;
+  
+  /* Spacing & Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+  
+  /* Shadows */
+  --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --shadow-float: 0 16px 48px rgba(0, 0, 0, 0.8), 0 0 0 1px var(--glass-border-light);
+  --shadow-glow: 0 0 40px var(--accent-gold-glow);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-primary);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden; /* Desktop app feel */
+  height: 100vh;
+  width: 100vw;
+  /* Very subtle deep ambient lighting */
+  background-image: 
+    radial-gradient(circle at 10% 10%, rgba(0, 229, 255, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 90% 90%, rgba(0, 255, 204, 0.03) 0%, transparent 40%);
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+/* Base Typographic Styles */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+p {
+  line-height: 1.6;
+}
+
+/* Global Button & Interactive Elements Action Animation */
+button, .glass-panel, .nav-item, .user-profile-card, .suggestion-card {
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.2s, box-shadow 0.2s, border-color 0.2s !important;
+}
+
+button:active, .nav-item:active, .user-profile-card:active, .suggestion-card:active {
+  transform: scale(0.96) !important;
+}
+
+/* Glassmorphism Utility Classes */
+.glass-panel {
+  background: var(--glass-surface);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+.glass-panel-hover:hover {
+  background: var(--glass-surface-hover);
+  border-color: var(--glass-border-light);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-float);
+}
+
+/* Global Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 229, 255, 0.3);
+}
+
+/* Global Animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes float-subtle {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-3px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 10px var(--accent-gold-dim); }
+  50% { box-shadow: 0 0 30px var(--accent-gold-glow); }
+  100% { box-shadow: 0 0 10px var(--accent-gold-dim); }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pop-slide {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NovaAgent STT</title>
+    <link rel="stylesheet" href="/frontend/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">NovaAgent</p>
+          <h1>Speech to Text</h1>
+        </div>
+        <div class="status" id="connectionStatus">Disconnected</div>
+      </section>
+
+      <section class="panel transcript-panel">
+        <div class="panel-header">
+          <h2>Transcript</h2>
+          <button type="button" class="ghost" id="clearTranscript">Clear</button>
+        </div>
+        <div class="transcript" id="transcriptOutput">Waiting for speech...</div>
+      </section>
+
+      <section class="grid">
+
+
+        <article class="panel">
+          <div class="panel-header">
+            <h2>Upload Audio</h2>
+            <span class="pill" id="uploadStatus">Ready</span>
+          </div>
+          <form id="uploadForm">
+            <input type="file" id="audioFile" accept="audio/*,.wav,.mp3,.m4a,.webm" />
+            <button type="submit">Transcribe</button>
+          </form>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <h2>Push Test</h2>
+            <span class="pill" id="pushStatus">Ready</span>
+          </div>
+          <form id="pushForm">
+            <input type="text" id="pushText" placeholder="Type a test transcript" />
+            <button type="submit">Send</button>
+          </form>
+        </article>
+      </section>
+    </main>
+
+    <script src="/frontend/app.js"></script>
+  </body>
+</html>
