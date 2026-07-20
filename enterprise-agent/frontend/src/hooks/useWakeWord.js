@@ -29,6 +29,7 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
   const cooldownRef = useRef(false);
   const manualModeRef = useRef(false);
   const isListeningRef = useRef(false);
+  const silenceTimerRef = useRef(null);
   const onCommandRef = useRef(onCommand);
 
   // Keep onCommand ref current
@@ -88,13 +89,15 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
 
             if (final) {
               const query = final.trim();
+              // Clear silence timer on final result
+              if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
               
               if (manualModeRef.current) {
                 // Manual mode: send everything directly (no wake word needed)
                 setTranscript('');
                 if (query.length > 0) {
                   onCommandRef.current(query);
-                  setIsNovaActive(false); // Reset active state after command
+                  setIsNovaActive(false);
                 }
                 manualModeRef.current = false;
               } else {
@@ -108,18 +111,34 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
                     onCommandRef.current(stripped);
                     setTimeout(() => setIsNovaActive(false), 2000);
                   } else {
-                    // Enter active listening mode so the next phrase is caught as a command
+                    // Enter active listening mode — start silence timer
                     manualModeRef.current = true;
+                    silenceTimerRef.current = setTimeout(() => {
+                      // 5 seconds of silence — auto-stop
+                      manualModeRef.current = false;
+                      setIsNovaActive(false);
+                      setTranscript('');
+                      try { recognitionRef.current?.stop(); } catch(e) {}
+                    }, 5000);
                   }
                 } else {
-                  // No wake word, discard silently
                   setTranscript('');
                 }
               }
             } else {
-              // Show interim transcription
+              // Show interim transcription & reset silence timer
               if (manualModeRef.current || wakeWordRegex.test(interim.toLowerCase())) {
                 setTranscript(interim);
+                // Reset silence timer on any interim speech
+                if (manualModeRef.current && silenceTimerRef.current) {
+                  clearTimeout(silenceTimerRef.current);
+                  silenceTimerRef.current = setTimeout(() => {
+                    manualModeRef.current = false;
+                    setIsNovaActive(false);
+                    setTranscript('');
+                    try { recognitionRef.current?.stop(); } catch(e) {}
+                  }, 5000);
+                }
               }
             }
           };
@@ -127,9 +146,11 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
           recognition.onerror = (event) => {
             if (event.error !== 'no-speech' && event.error !== 'aborted') {
               console.error('Speech error:', event.error);
-              manualModeRef.current = false;
-              setIsNovaActive(false);
             }
+            // Always clean up on error
+            if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
+            manualModeRef.current = false;
+            setIsNovaActive(false);
             isListeningRef.current = false;
             setIsListening(false);
           };

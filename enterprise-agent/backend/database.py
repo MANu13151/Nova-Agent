@@ -18,6 +18,7 @@ def init_db():
     cursor = conn.cursor()
 
     # Drop existing tables in correct order of dependency
+    cursor.execute("DROP TABLE IF EXISTS query_log")
     cursor.execute("DROP TABLE IF EXISTS saved_queries")
     cursor.execute("DROP TABLE IF EXISTS sales")
     cursor.execute("DROP TABLE IF EXISTS employees")
@@ -105,6 +106,20 @@ def init_db():
         id TEXT PRIMARY KEY,
         query TEXT NOT NULL,
         sql TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE query_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        query TEXT NOT NULL,
+        query_normalized TEXT NOT NULL,
+        generated_sql TEXT,
+        intent TEXT DEFAULT 'db_query',
+        status TEXT DEFAULT 'success',
+        execution_time REAL DEFAULT 0,
+        rows_returned INTEGER DEFAULT 0,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     """)

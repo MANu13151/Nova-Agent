@@ -58,6 +58,49 @@ async def delete_saved_query(query_id: str):
     conn.close()
     return {"status": "success"}
 
+class QueryLogEntry(BaseModel):
+    query: str
+    generated_sql: str = None
+    intent: str = "db_query"
+    status: str = "success"
+    execution_time: float = 0
+    rows_returned: int = 0
+
+@router.post("/query-log")
+async def log_query(entry: QueryLogEntry):
+    """Log a query for analytics and SQL caching."""
+    normalized = entry.query.strip().lower()
+    conn = get_db_connection()
+    conn.execute(
+        "INSERT INTO query_log (query, query_normalized, generated_sql, intent, status, execution_time, rows_returned) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (entry.query, normalized, entry.generated_sql, entry.intent, entry.status, entry.execution_time, entry.rows_returned)
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "logged"}
+
+@router.get("/query-log")
+async def get_query_log():
+    """Get all logged queries for analytics."""
+    conn = get_db_connection()
+    rows = conn.execute("SELECT * FROM query_log ORDER BY timestamp DESC LIMIT 200").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@router.get("/query-cache")
+async def check_query_cache(q: str = Query(...)):
+    """Check if a similar query has been asked before and return cached SQL."""
+    normalized = q.strip().lower()
+    conn = get_db_connection()
+    cached = conn.execute(
+        "SELECT generated_sql FROM query_log WHERE query_normalized = ? AND generated_sql IS NOT NULL AND status = 'success' ORDER BY timestamp DESC LIMIT 1",
+        (normalized,)
+    ).fetchone()
+    conn.close()
+    if cached and cached['generated_sql']:
+        return {"cached": True, "sql": cached['generated_sql']}
+    return {"cached": False, "sql": None}
+
 # -----------------------------
 
 class ChatRequest(BaseModel):

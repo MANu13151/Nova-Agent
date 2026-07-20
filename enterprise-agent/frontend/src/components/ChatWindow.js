@@ -89,7 +89,23 @@ export default function ChatWindow({ user, onLogout }) {
         })));
       } catch (err) { console.error('Failed to fetch saved queries', err); }
     };
+    const fetchQueryLog = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/query-log`);
+        const data = await response.json();
+        setQueryHistory(data.map(q => ({
+          id: q.id,
+          query: q.query,
+          sql: q.generated_sql,
+          intent: q.intent,
+          status: q.status,
+          executionTime: q.execution_time,
+          timestamp: new Date(q.timestamp)
+        })));
+      } catch (err) { console.error('Failed to fetch query log', err); }
+    };
     fetchSavedQueries();
+    fetchQueryLog();
   }, []);
   // UI State
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -482,67 +498,146 @@ export default function ChatWindow({ user, onLogout }) {
   };
 
   const renderAnalyticsTab = () => {
-    const totalQueries = queryHistory.length;
-    const successQueries = queryHistory.filter(q => q.status === 'success').length;
-    const errorQueries = queryHistory.filter(q => q.status === 'error').length;
+    const allQueries = [...queryHistory];
+    const totalQueries = allQueries.length;
+    const successQueries = allQueries.filter(q => q.status === 'success').length;
+    const errorQueries = allQueries.filter(q => q.status === 'error').length;
+    const successRate = totalQueries > 0 ? ((successQueries / totalQueries) * 100).toFixed(1) : '0.0';
     const avgTime = totalQueries > 0 
-      ? (queryHistory.reduce((sum, q) => sum + parseFloat(q.executionTime || '0'), 0) / totalQueries).toFixed(2)
+      ? (allQueries.reduce((sum, q) => sum + parseFloat(q.executionTime || '0'), 0) / totalQueries).toFixed(2)
       : '0.00';
-    const dbQueries = queryHistory.filter(q => q.intent === 'db_query').length;
-    const chatQueries = queryHistory.filter(q => q.intent === 'general_chat').length;
+    const dbQueries = allQueries.filter(q => q.intent === 'db_query').length;
     
+    // Build timeline data (last 10 queries)
+    const timelineLabels = allQueries.slice(-10).map((q, i) => `Q${i + 1}`);
+    const timelineData = allQueries.slice(-10).map(q => parseFloat(q.executionTime || '0'));
+
     return (
       <div className="tab-content analytics-tab">
         <h2 className="tab-title">Usage Analytics</h2>
-        <p className="tab-subtitle">How you're interacting with Nova AI this session.</p>
+        <p className="tab-subtitle">Cross-session performance insights for Nova AI.</p>
         
-        {/* Stats Grid */}
-        <div className="analytics-grid">
-          <div className="analytics-card glass-panel">
-            <span className="analytics-label">Total Queries</span>
-            <span className="analytics-value">{totalQueries}</span>
+        {/* KPI Strip */}
+        <div className="analytics-kpi-strip">
+          <div className="kpi-card glass-panel" style={{ borderLeft: '3px solid #00E5FF' }}>
+            <span className="kpi-label">Total Queries</span>
+            <span className="kpi-value">{totalQueries}</span>
+            <span className="kpi-trend" style={{ color: '#00E5FF' }}>↑ all time</span>
           </div>
-          <div className="analytics-card glass-panel">
-            <span className="analytics-label">Successful</span>
-            <span className="analytics-value" style={{color: 'var(--accent-green)'}}>{successQueries}</span>
+          <div className="kpi-card glass-panel" style={{ borderLeft: '3px solid #00FFAA' }}>
+            <span className="kpi-label">Success Rate</span>
+            <span className="kpi-value" style={{ color: '#00FFAA' }}>{successRate}%</span>
+            <span className="kpi-trend" style={{ color: '#00FFAA' }}>✓ {successQueries} passed</span>
           </div>
-          <div className="analytics-card glass-panel">
-            <span className="analytics-label">Errors</span>
-            <span className="analytics-value" style={{color: '#ff6b6b'}}>{errorQueries}</span>
+          <div className="kpi-card glass-panel" style={{ borderLeft: '3px solid #B055FF' }}>
+            <span className="kpi-label">Avg Response</span>
+            <span className="kpi-value">{avgTime}s</span>
+            <span className="kpi-trend" style={{ color: '#B055FF' }}>⚡ fast</span>
           </div>
-          <div className="analytics-card glass-panel">
-            <span className="analytics-label">Avg Response</span>
-            <span className="analytics-value">{avgTime}s</span>
+          <div className="kpi-card glass-panel" style={{ borderLeft: '3px solid #FFB800' }}>
+            <span className="kpi-label">DB Queries</span>
+            <span className="kpi-value">{dbQueries}</span>
+            <span className="kpi-trend" style={{ color: '#FFB800' }}>📊 cached</span>
           </div>
         </div>
 
-        {/* Breakdown */}
-        <div className="analytics-breakdown glass-panel">
-          <h3 className="analytics-section-title">Query Type Breakdown</h3>
-          <div className="breakdown-bars">
-            <div className="breakdown-row">
-              <span>Database Queries</span>
-              <div className="breakdown-bar">
-                <div className="breakdown-fill db-fill" style={{width: totalQueries > 0 ? `${(dbQueries/totalQueries)*100}%` : '0%'}}></div>
-              </div>
-              <span className="breakdown-count">{dbQueries}</span>
+        {/* Timeline Chart + Floating Success Card */}
+        <div className="analytics-chart-section">
+          <div className="analytics-chart-container glass-panel">
+            <div className="analytics-chart-header">
+              <span>Query Performance Timeline</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Last {Math.min(10, totalQueries)} queries</span>
             </div>
-            <div className="breakdown-row">
-              <span>General Chat</span>
-              <div className="breakdown-bar">
-                <div className="breakdown-fill chat-fill" style={{width: totalQueries > 0 ? `${(chatQueries/totalQueries)*100}%` : '0%'}}></div>
+            {totalQueries > 0 ? (
+              <div style={{ padding: '16px', height: '220px' }}>
+                <Line
+                  data={{
+                    labels: timelineLabels,
+                    datasets: [{
+                      label: 'Response Time (s)',
+                      data: timelineData,
+                      borderColor: '#00E5FF',
+                      backgroundColor: (ctx) => {
+                        const chart = ctx.chart;
+                        const {ctx: c, chartArea} = chart;
+                        if (!chartArea) return 'rgba(0, 229, 255, 0.1)';
+                        const gradient = c.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                        gradient.addColorStop(0, 'rgba(0, 229, 255, 0)');
+                        gradient.addColorStop(1, 'rgba(0, 229, 255, 0.25)');
+                        return gradient;
+                      },
+                      tension: 0.4,
+                      fill: true,
+                      pointRadius: 5,
+                      pointBackgroundColor: '#00E5FF',
+                      pointBorderColor: '#0A0F1A',
+                      pointBorderWidth: 3,
+                    }]
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                      y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.03)' } },
+                      x: { ticks: { color: '#8A9BAE' }, grid: { display: false } }
+                    }
+                  }}
+                />
               </div>
-              <span className="breakdown-count">{chatQueries}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>Other</span>
-              <div className="breakdown-bar">
-                <div className="breakdown-fill other-fill" style={{width: totalQueries > 0 ? `${((totalQueries - dbQueries - chatQueries)/totalQueries)*100}%` : '0%'}}></div>
+            ) : (
+              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                No data yet. Start querying to see the timeline.
               </div>
-              <span className="breakdown-count">{totalQueries - dbQueries - chatQueries}</span>
-            </div>
+            )}
+          </div>
+
+          {/* Floating Success Rate Card */}
+          <div className="floating-stat-card glass-panel">
+            <span className="floating-stat-value" style={{ color: '#00FFAA' }}>{successRate}%</span>
+            <span className="floating-stat-label">Success Rate</span>
           </div>
         </div>
+
+        {/* Query History Table */}
+        {totalQueries > 0 && (
+          <div className="analytics-table-section glass-panel">
+            <div className="analytics-chart-header">
+              <span>Query History</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{totalQueries} total</span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="analytics-history-table">
+                <thead>
+                  <tr>
+                    <th>Query</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allQueries.slice().reverse().slice(0, 20).map((q, i) => (
+                    <tr key={i}>
+                      <td className="query-cell">{q.query}</td>
+                      <td>
+                        <span className={`type-pill ${q.intent === 'db_query' ? 'type-db' : 'type-chat'}`}>
+                          {q.intent === 'db_query' ? 'Database' : 'Chat'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`status-pill ${q.status === 'success' ? 'status-success' : 'status-error'}`}>
+                          {q.status === 'success' ? '✓ Success' : '✗ Error'}
+                        </span>
+                      </td>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>{q.executionTime || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {totalQueries === 0 && (
           <div className="empty-state">
@@ -849,28 +944,19 @@ export default function ChatWindow({ user, onLogout }) {
           </div>
         ) : (
           <>
-            {/* Card 1: Safe Query Status */}
-            <div className="insight-card glass-panel">
-              <div className="panel-title">Security Status</div>
-              <div className="status-badge">
-                <div className="status-dot"/>
-                Safe Query Verified
-              </div>
-            </div>
-
-            {/* Card 2: Interactive Chart */}
+            {/* Chart Visualization — Bigger & Premium */}
             {activeChart && activeChart.type && (
               <div 
-                className="insight-card glass-panel" 
-                style={{ padding: '0', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s' }}
+                className="insight-card glass-panel chart-card-main" 
                 onClick={() => openChartModal(activeChart)}
                 title="Click to expand details"
               >
-                <div style={{ padding: '16px 16px 0 16px' }} className="panel-title">
+                <div className="panel-title">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                   Visualization
+                  <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>Click to expand ↗</span>
                 </div>
-                <div style={{ padding: '16px' }}>
+                <div style={{ padding: '16px', minHeight: '220px' }}>
                   {activeChart.type === 'bar' && (
                     <Bar 
                       data={{
@@ -878,12 +964,21 @@ export default function ChatWindow({ user, onLogout }) {
                         datasets: [{
                           label: activeChart.datasets[0].label,
                           data: activeChart.datasets[0].data,
-                          backgroundColor: 'rgba(0, 229, 255, 0.6)',
-                          borderColor: '#00E5FF',
+                          backgroundColor: (ctx) => {
+                            const chart = ctx.chart;
+                            const {ctx: c, chartArea} = chart;
+                            if (!chartArea) return 'rgba(0, 229, 255, 0.6)';
+                            const gradient = c.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                            gradient.addColorStop(0, 'rgba(0, 229, 255, 0.3)');
+                            gradient.addColorStop(1, 'rgba(176, 85, 255, 0.8)');
+                            return gradient;
+                          },
+                          borderColor: '#B055FF',
                           borderWidth: 1,
+                          borderRadius: 6,
                         }]
                       }} 
-                      options={{ responsive: true, plugins: { legend: { display: false }, title: { display: true, text: activeChart.title, color: '#fff' } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#8A9BAE' }, grid: { display: false } } } }}
+                      options={{ responsive: true, plugins: { legend: { display: false }, title: { display: true, text: activeChart.title, color: '#fff', font: { size: 13 } } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.03)' } }, x: { ticks: { color: '#8A9BAE', maxRotation: 45 }, grid: { display: false } } } }}
                     />
                   )}
                   {activeChart.type === 'line' && (
@@ -894,12 +989,24 @@ export default function ChatWindow({ user, onLogout }) {
                           label: activeChart.datasets[0].label,
                           data: activeChart.datasets[0].data,
                           borderColor: '#00E5FF',
-                          backgroundColor: 'rgba(0, 229, 255, 0.2)',
+                          backgroundColor: (ctx) => {
+                            const chart = ctx.chart;
+                            const {ctx: c, chartArea} = chart;
+                            if (!chartArea) return 'rgba(0, 229, 255, 0.2)';
+                            const gradient = c.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                            gradient.addColorStop(0, 'rgba(0, 229, 255, 0)');
+                            gradient.addColorStop(1, 'rgba(0, 229, 255, 0.3)');
+                            return gradient;
+                          },
                           tension: 0.4,
-                          fill: true
+                          fill: true,
+                          pointRadius: 4,
+                          pointBackgroundColor: '#00E5FF',
+                          pointBorderColor: '#060A0F',
+                          pointBorderWidth: 2,
                         }]
                       }} 
-                      options={{ responsive: true, plugins: { legend: { display: false }, title: { display: true, text: activeChart.title, color: '#fff' } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#8A9BAE' }, grid: { display: false } } } }}
+                      options={{ responsive: true, plugins: { legend: { display: false }, title: { display: true, text: activeChart.title, color: '#fff', font: { size: 13 } } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.03)' } }, x: { ticks: { color: '#8A9BAE' }, grid: { display: false } } } }}
                     />
                   )}
                   {activeChart.type === 'pie' && (
@@ -908,75 +1015,49 @@ export default function ChatWindow({ user, onLogout }) {
                         labels: activeChart.labels,
                         datasets: [{
                           data: activeChart.datasets[0].data,
-                          backgroundColor: ['#00E5FF', '#00FFAA', '#00FFCC', '#00BFFF', '#0080FF'],
-                          borderWidth: 0,
+                          backgroundColor: ['#00E5FF', '#B055FF', '#FF007F', '#00FFAA', '#FFB800', '#0080FF'],
+                          borderWidth: 2,
+                          borderColor: '#0A0F1A',
                         }]
                       }} 
-                      options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#8A9BAE' } }, title: { display: true, text: activeChart.title, color: '#fff' } } }}
+                      options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#8A9BAE', padding: 12 } }, title: { display: true, text: activeChart.title, color: '#fff', font: { size: 13 } } } }}
                     />
                   )}
                 </div>
               </div>
             )}
 
-            {/* Card 3: AI Insights */}
-            {activeSql && (
-              <div className="insight-card glass-panel">
-                <div className="panel-title">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                  Business Insights
-                </div>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  The data indicates strong performance in this segment. Consider allocating more resources to capitalize on this trend.
-                </p>
-              </div>
-            )}
-
-            {/* Card 4: Query Metrics */}
+            {/* Compact Metrics Row */}
             {queryMetrics && (
-              <div className="insight-card glass-panel">
-                <div className="panel-title">Execution Metrics</div>
-                <div className="metrics-grid">
-                  <div className="metric-item">
-                    <span className="metric-label">Execution Time</span>
-                    <span className="metric-value">{queryMetrics.time}</span>
-                  </div>
-                  <div className="metric-item">
-                    <span className="metric-label">Rows Returned</span>
-                    <span className="metric-value">{queryMetrics.rows}</span>
-                  </div>
-                  <div className="metric-item">
-                    <span className="metric-label">Confidence</span>
-                    <span className="metric-value" style={{ color: 'var(--accent-green)' }}>{queryMetrics.confidence}</span>
-                  </div>
-                  <div className="metric-item">
-                    <span className="metric-label">Tokens</span>
-                    <span className="metric-value">{queryMetrics.tokens}</span>
-                  </div>
+              <div className="insight-card glass-panel compact-metrics">
+                <div className="compact-metric">
+                  <span className="compact-metric-value">{queryMetrics.rows}</span>
+                  <span className="compact-metric-label">Rows</span>
+                </div>
+                <div className="compact-metric-divider" />
+                <div className="compact-metric">
+                  <span className="compact-metric-value">{queryMetrics.time}</span>
+                  <span className="compact-metric-label">Time</span>
+                </div>
+                <div className="compact-metric-divider" />
+                <div className="compact-metric">
+                  <span className="compact-metric-value" style={{ color: 'var(--accent-green)' }}>{queryMetrics.confidence}</span>
+                  <span className="compact-metric-label">Confidence</span>
                 </div>
               </div>
             )}
 
-            {/* Card 5: Generated SQL */}
+            {/* Collapsed SQL Accordion */}
             {activeSql && (
-              <div className="insight-card glass-panel">
-                <div className="panel-title">
+              <details className="sql-accordion glass-panel">
+                <summary className="sql-accordion-header">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-                  Generated SQL
-                </div>
-                <div style={{ 
-                  background: 'rgba(0,0,0,0.4)', 
-                  padding: '12px', 
-                  borderRadius: '8px', 
-                  fontFamily: 'var(--font-mono)', 
-                  fontSize: '0.75rem',
-                  color: '#A0A4B0',
-                  overflowX: 'auto',
-                  whiteSpace: 'pre-wrap'
-                }}>
+                  View Generated SQL
+                </summary>
+                <div className="sql-accordion-body">
                   {activeSql}
                 </div>
-              </div>
+              </details>
             )}
           </>
         )}

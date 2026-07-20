@@ -77,21 +77,40 @@ def orchestrate_message(user_message: str, session_id: str, user_name: str = "Us
         # Format conversation history for context
         history_text = "\n".join([f"{msg['role'].capitalize()}: {msg['content']}" for msg in history[-6:]]) if history else "No previous history."
         
-        sql_gen_prompt = SQL_GENERATOR_PROMPT.format(
-            schema_text=schema_text, 
-            chat_history=history_text,
-            user_input=user_message
-        )
+        # Check SQL cache first (prefetch from previous queries)
+        cached_sql = None
+        try:
+            from backend.database import get_db_connection
+            normalized = user_message.strip().lower()
+            conn = get_db_connection()
+            cached_row = conn.execute(
+                "SELECT generated_sql FROM query_log WHERE query_normalized = ? AND generated_sql IS NOT NULL AND status = 'success' ORDER BY timestamp DESC LIMIT 1",
+                (normalized,)
+            ).fetchone()
+            conn.close()
+            if cached_row and cached_row['generated_sql']:
+                cached_sql = cached_row['generated_sql']
+                print(f"[Cache HIT] Reusing SQL for: {user_message[:50]}...")
+        except Exception as cache_err:
+            print(f"[Cache] Lookup failed: {cache_err}")
         
         try:
-            # Generate SQL query
-            raw_sql = call_llm(
-                prompt=sql_gen_prompt,
-                system_instruction="You generate SQLite SELECT queries based on a schema. Output the query only, no explanations, no code block markers.",
-                temperature=0.1
-            )
+            if cached_sql:
+                sql_query = cached_sql
+            else:
+                sql_gen_prompt = SQL_GENERATOR_PROMPT.format(
+                    schema_text=schema_text, 
+                    chat_history=history_text,
+                    user_input=user_message
+                )
+                # Generate SQL query
+                raw_sql = call_llm(
+                    prompt=sql_gen_prompt,
+                    system_instruction="You generate SQLite SELECT queries based on a schema. Output the query only, no explanations, no code block markers.",
+                    temperature=0.1
+                )
+                sql_query = clean_sql_query(raw_sql)
             
-            sql_query = clean_sql_query(raw_sql)
             response_payload["sql"] = sql_query
             
             # Execute query
@@ -128,6 +147,18 @@ def orchestrate_message(user_message: str, session_id: str, user_name: str = "Us
                 response_payload["response"] = final_response
                 memory_manager.add_message(session_id, "assistant", final_response)
                 
+                # Log query to cache for future prefetching
+                try:
+                    from backend.database import get_db_connection
+                    conn = get_db_connection()
+                    conn.execute(
+                        "INSERT INTO query_log (query, query_normalized, generated_sql, intent, status, execution_time, rows_returned) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (user_message, user_message.strip().lower(), sql_query, "db_query", "success", 0, len(rows))
+                    )
+                    conn.commit()
+                    conn.close()
+                except Exception as log_err:
+                    print(f"[QueryLog] Failed to log: {log_err}")
             else:
                 # Execution error (security block or DB error)
                 error_msg = execution_res.get("error_message", "Unknown database error.")
