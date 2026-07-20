@@ -208,6 +208,7 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
   const startManual = useCallback(() => {
     if (!recognitionRef.current) return;
     manualModeRef.current = true;
+    setIsNovaActive(true);
     setTranscript('');
     try { 
       if (!isListeningRef.current) {
@@ -222,6 +223,7 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
   const stopManual = useCallback(() => {
     if (!recognitionRef.current) return;
     manualModeRef.current = false;
+    setIsNovaActive(false);
     try { 
       isListeningRef.current = false;
       recognitionRef.current.stop(); 

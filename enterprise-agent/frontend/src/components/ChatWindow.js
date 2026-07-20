@@ -847,9 +847,9 @@ export default function ChatWindow({ user, onLogout }) {
           <div className="input-dock">
             <div className={`input-container ${isNovaActive ? 'nova-active' : ''}`}>
               <button 
-                className={`orb-btn ${isListening ? 'listening' : ''}`}
+                className={`orb-btn ${isNovaActive ? 'listening' : ''}`}
                 onClick={toggleListening}
-                title={isListening ? "Listening... (click to stop)" : "Click to speak"}
+                title={isNovaActive ? "Listening... (click to stop)" : "Click to speak"}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
                   <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
@@ -869,7 +869,7 @@ export default function ChatWindow({ user, onLogout }) {
                     handleSendFromInput();
                   }
                 }}
-                placeholder={isListening ? "Listening... speak your question" : isReady ? "Say 'Hey Nova' or type a question..." : "Ask Nova anything..."}
+                placeholder={isNovaActive ? "Listening... speak your question" : isReady ? "Say 'Hey Nova' or type a question..." : "Ask Nova anything..."}
               />
               <button className="send-btn" onClick={handleSendFromInput} disabled={!input.trim()}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
@@ -878,16 +878,10 @@ export default function ChatWindow({ user, onLogout }) {
                 </svg>
               </button>
             </div>
-            {isListening && (
+            {isNovaActive && (
               <div className="status-text listening-text">
                 <span className="pulse-dot"></span>
                 Nova is listening... Speak now
-              </div>
-            )}
-            {isNovaActive && !isListening && (
-              <div className="status-text active-text">
-                <span className="pulse-dot active-dot"></span>
-                Nova is processing...
               </div>
             )}
           </div>
