@@ -835,7 +835,7 @@ export default function ChatWindow({ user, onLogout }) {
 
         {activeTab === 'Chat' && (
           <div className="neurovia-orb-container">
-            <ParticleSphere isListening={isListening || isNovaActive} />
+            <ParticleSphere isListening={isNovaActive} />
           </div>
         )}
 

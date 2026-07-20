@@ -159,23 +159,16 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
             isListeningRef.current = false;
             setIsListening(false);
             
-            if (manualModeRef.current) {
-              // If we are in active mode waiting for a command, restart smoothly
+            if (mounted) {
+              // Always restart to keep background listening alive
               setTimeout(() => {
                 if (!isListeningRef.current && recognitionRef.current) {
                   try {
                     isListeningRef.current = true;
                     recognitionRef.current.start();
-                  } catch(e) {
-                    isListeningRef.current = false;
-                  }
+                  } catch(e) {}
                 }
               }, 400);
-            } else {
-              // Otherwise, apply cooldown to prevent rapid restarts from background noise
-              setTimeout(() => setIsNovaActive(false), 1500);
-              cooldownRef.current = true;
-              setTimeout(() => { cooldownRef.current = false; }, 1500);
             }
           };
 
@@ -184,44 +177,11 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
 
         setIsReady(true);
 
-        // 4. Start volume monitoring loop
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        let voiceFrames = 0;
-        const VOICE_THRESHOLD = 35; // Volume threshold (0-255)
-        const FRAMES_TO_TRIGGER = 8; // ~8 frames of voice activity before starting recognition
-
-        const monitorVolume = () => {
-          if (!mounted) return;
-          analyser.getByteFrequencyData(dataArray);
-          
-          // Calculate average volume
-          let sum = 0;
-          for (let i = 0; i < dataArray.length; i++) {
-            sum += dataArray[i];
-          }
-          const avgVolume = sum / dataArray.length;
-
-          if (avgVolume > VOICE_THRESHOLD && !isListeningRef.current && !cooldownRef.current) {
-            voiceFrames++;
-            if (voiceFrames >= FRAMES_TO_TRIGGER && recognitionRef.current) {
-              try {
-                isListeningRef.current = true;
-                recognitionRef.current.start();
-                voiceFrames = 0;
-              } catch (e) {
-                // Already running or other error, reset
-                isListeningRef.current = false;
-                voiceFrames = 0;
-              }
-            }
-          } else {
-            voiceFrames = Math.max(0, voiceFrames - 1); // Decay slowly
-          }
-
-          rafRef.current = requestAnimationFrame(monitorVolume);
-        };
-
-        monitorVolume();
+        // Start recognition immediately and run continuously
+        try {
+          isListeningRef.current = true;
+          recognition.start();
+        } catch (e) {}
 
       } catch (err) {
         console.warn('Microphone access denied or unavailable:', err);
