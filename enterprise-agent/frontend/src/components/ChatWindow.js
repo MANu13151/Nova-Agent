@@ -773,8 +773,8 @@ export default function ChatWindow({ user, onLogout }) {
             <div className="user-profile-nav" onClick={() => setShowProfileMenu(!showProfileMenu)} style={{ cursor: 'pointer', position: 'relative' }}>
               <div className="user-avatar-small">{userName.charAt(0).toUpperCase()}</div>
               {showProfileMenu && (
-                <div className="profile-menu glass-panel" style={{ position: 'absolute', top: '120%', right: '0', padding: '8px 0', zIndex: 100 }}>
-                  <div className="menu-item" style={{ padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', color: '#ff4d4d' }} onClick={() => {
+                <div className="profile-menu glass-panel" style={{ position: 'absolute', top: '120%', right: '0', padding: '8px 0', zIndex: 100, minWidth: '120px', whiteSpace: 'nowrap' }}>
+                  <div className="menu-item" style={{ padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', color: '#ff4d4d', textAlign: 'center' }} onClick={() => {
                     if (onLogout) {
                       onLogout();
                     } else {

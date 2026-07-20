@@ -39,9 +39,14 @@ export default function Login({ onLogin }) {
     }
   };
 
+  const [isEntering, setIsEntering] = useState(false);
+
   const handlePlanetClick = () => {
     if (userData) {
-      onLogin(userData);
+      setIsEntering(true);
+      setTimeout(() => {
+        onLogin(userData);
+      }, 1500); // Wait for animation to finish before entering
     }
   };
 
@@ -83,9 +88,9 @@ export default function Login({ onLogin }) {
             </p>
           </div>
         ) : (
-          <div className="planet-container" onClick={handlePlanetClick}>
+          <div className={`planet-container ${isEntering ? 'entering' : ''}`} onClick={handlePlanetClick}>
             <div className="dark-planet"></div>
-            <div className="planet-hint">Tap to Enter</div>
+            <div className="planet-hint" style={{ opacity: isEntering ? 0 : 1, transition: 'opacity 0.3s' }}>Tap to Enter</div>
           </div>
         )}
       </main>
