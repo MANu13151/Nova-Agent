@@ -775,8 +775,12 @@ export default function ChatWindow({ user, onLogout }) {
               {showProfileMenu && (
                 <div className="profile-menu glass-panel" style={{ position: 'absolute', top: '120%', right: '0', padding: '8px 0', zIndex: 100 }}>
                   <div className="menu-item" style={{ padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', color: '#ff4d4d' }} onClick={() => {
-                    localStorage.removeItem('enterprise_user_name');
-                    window.location.reload();
+                    if (onLogout) {
+                      onLogout();
+                    } else {
+                      localStorage.removeItem('nova_enterprise_auth');
+                      window.location.reload();
+                    }
                   }}>
                     Sign Out
                   </div>
@@ -1016,13 +1020,70 @@ export default function ChatWindow({ user, onLogout }) {
               
               <div style={{ height: '350px', width: '100%', display: 'flex', justifyContent: 'center' }}>
                 {modalChartType === 'bar' && (
-                  <Bar data={{ labels: activeChart.labels, datasets: [{ label: activeChart.datasets[0].label, data: activeChart.datasets[0].data, backgroundColor: 'rgba(0, 229, 255, 0.6)', borderColor: '#00E5FF', borderWidth: 1 }]}} options={{ maintainAspectRatio: false, responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#8A9BAE' }, grid: { display: false } } } }} />
+                  <Bar 
+                    data={{ 
+                      labels: activeChart.labels, 
+                      datasets: [{ 
+                        label: activeChart.datasets[0].label, 
+                        data: activeChart.datasets[0].data, 
+                        backgroundColor: (ctx) => {
+                          const chart = ctx.chart;
+                          const {ctx: c, chartArea} = chart;
+                          if (!chartArea) return 'rgba(0, 229, 255, 0.6)';
+                          const gradient = c.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                          gradient.addColorStop(0, 'rgba(0, 229, 255, 0.3)');
+                          gradient.addColorStop(1, 'rgba(176, 85, 255, 0.8)');
+                          return gradient;
+                        },
+                        borderColor: '#B055FF', 
+                        borderWidth: 1,
+                        borderRadius: 6,
+                      }]
+                    }} 
+                    options={{ maintainAspectRatio: false, responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.03)' } }, x: { ticks: { color: '#8A9BAE', maxRotation: 45 }, grid: { display: false } } } }} 
+                  />
                 )}
                 {modalChartType === 'line' && (
-                  <Line data={{ labels: activeChart.labels, datasets: [{ label: activeChart.datasets[0].label, data: activeChart.datasets[0].data, borderColor: '#00E5FF', backgroundColor: 'rgba(0, 229, 255, 0.2)', tension: 0.4, fill: true }]}} options={{ maintainAspectRatio: false, responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#8A9BAE' }, grid: { display: false } } } }} />
+                  <Line 
+                    data={{ 
+                      labels: activeChart.labels, 
+                      datasets: [{ 
+                        label: activeChart.datasets[0].label, 
+                        data: activeChart.datasets[0].data, 
+                        borderColor: '#00E5FF', 
+                        backgroundColor: (ctx) => {
+                          const chart = ctx.chart;
+                          const {ctx: c, chartArea} = chart;
+                          if (!chartArea) return 'rgba(0, 229, 255, 0.2)';
+                          const gradient = c.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                          gradient.addColorStop(0, 'rgba(0, 229, 255, 0)');
+                          gradient.addColorStop(1, 'rgba(0, 229, 255, 0.3)');
+                          return gradient;
+                        },
+                        tension: 0.4, 
+                        fill: true,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#00E5FF',
+                        pointBorderColor: '#060A0F',
+                        pointBorderWidth: 2,
+                      }]
+                    }} 
+                    options={{ maintainAspectRatio: false, responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.03)' } }, x: { ticks: { color: '#8A9BAE', maxRotation: 45 }, grid: { display: false } } } }} 
+                  />
                 )}
                 {modalChartType === 'pie' && (
-                  <Pie data={{ labels: activeChart.labels, datasets: [{ data: activeChart.datasets[0].data, backgroundColor: ['#00E5FF', '#00FFAA', '#00FFCC', '#00BFFF', '#0080FF'], borderWidth: 0 }]}} options={{ maintainAspectRatio: false, responsive: true, plugins: { legend: { position: 'right', labels: { color: '#8A9BAE' } } } }} />
+                  <Pie 
+                    data={{ 
+                      labels: activeChart.labels, 
+                      datasets: [{ 
+                        data: activeChart.datasets[0].data, 
+                        backgroundColor: ['#00E5FF', '#B055FF', '#FF007F', '#00FFAA', '#FFB800', '#0080FF'], 
+                        borderWidth: 2,
+                        borderColor: '#0A0F1A'
+                      }]
+                    }} 
+                    options={{ maintainAspectRatio: false, responsive: true, plugins: { legend: { position: 'right', labels: { color: '#8A9BAE', padding: 12 } } } }} 
+                  />
                 )}
               </div>
 

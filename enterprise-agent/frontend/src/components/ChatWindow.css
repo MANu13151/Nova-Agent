@@ -150,16 +150,19 @@
   box-shadow: 0 0 10px rgba(0,229,255,0.3);
 }
 
-.online-indicator {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 10px;
-  height: 10px;
-  background: #00FFAA;
-  border: 2px solid var(--bg-secondary);
+.user-avatar-small {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
   border-radius: 50%;
-  box-shadow: 0 0 5px rgba(0,255,170,0.5);
+  background: linear-gradient(135deg, #0088FF, #00E5FF);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(0,229,255,0.3);
 }
 
 .user-details {
