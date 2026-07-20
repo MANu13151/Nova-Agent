@@ -47,6 +47,7 @@ const INITIAL_MESSAGE = {
 
 export default function ChatWindow({ user, onLogout }) {
   const [userName, setUserName] = useState(user?.display_name || 'Admin');
+  const [isVoiceEnrolled, setIsVoiceEnrolled] = useState(user?.voice_enrolled === 1);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -774,33 +775,41 @@ export default function ChatWindow({ user, onLogout }) {
               <div className="user-avatar-small">{userName.charAt(0).toUpperCase()}</div>
               {showProfileMenu && (
                 <div className="profile-menu glass-panel" style={{ position: 'absolute', top: '120%', right: '0', padding: '8px 0', zIndex: 100, minWidth: '150px', whiteSpace: 'nowrap' }}>
-                  <div className="menu-item" style={{ padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', color: '#00E5FF', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }} onClick={async () => {
-                    // Quick inline voice enrollment for prototype
-                    try {
-                      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                      const mediaRecorder = new MediaRecorder(stream);
-                      const chunks = [];
-                      mediaRecorder.ondataavailable = e => chunks.push(e.data);
-                      mediaRecorder.onstop = async () => {
-                        const blob = new Blob(chunks, { type: 'audio/webm' });
-                        const fd = new FormData();
-                        fd.append('file', blob, 'voice.webm');
-                        fd.append('username', user?.username || 'admin');
-                        await fetch((process.env.REACT_APP_API_URL || 'http://localhost:8000/api') + '/auth/voice/register', { method: 'POST', body: fd });
-                        alert('Voice 2FA Enrolled Successfully!');
-                      };
-                      mediaRecorder.start();
-                      alert('Recording for 3 seconds... Please speak now.');
-                      setTimeout(() => {
-                        mediaRecorder.stop();
-                        stream.getTracks().forEach(t => t.stop());
-                      }, 3000);
-                    } catch (e) {
-                      alert('Microphone access denied');
-                    }
-                  }}>
-                    Enroll Voice 2FA
-                  </div>
+                  {!isVoiceEnrolled && (
+                    <div className="menu-item" style={{ padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', color: '#00E5FF', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }} onClick={async () => {
+                      // Quick inline voice enrollment for prototype
+                      try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        const mediaRecorder = new MediaRecorder(stream);
+                        const chunks = [];
+                        mediaRecorder.ondataavailable = e => chunks.push(e.data);
+                        mediaRecorder.onstop = async () => {
+                          const blob = new Blob(chunks, { type: 'audio/webm' });
+                          const fd = new FormData();
+                          fd.append('file', blob, 'voice.webm');
+                          fd.append('username', user?.username || 'admin');
+                          await fetch((process.env.REACT_APP_API_URL || 'http://localhost:8000/api') + '/auth/voice/register', { method: 'POST', body: fd });
+                          
+                          // Update local user object and state
+                          setIsVoiceEnrolled(true);
+                          const updatedUser = { ...user, voice_enrolled: 1 };
+                          localStorage.setItem('nova_user', JSON.stringify(updatedUser));
+                          
+                          alert('Voice 2FA Enrolled Successfully!');
+                        };
+                        mediaRecorder.start();
+                        alert('Recording for 3 seconds... Please speak now.');
+                        setTimeout(() => {
+                          mediaRecorder.stop();
+                          stream.getTracks().forEach(t => t.stop());
+                        }, 3000);
+                      } catch (e) {
+                        alert('Microphone access denied');
+                      }
+                    }}>
+                      Enroll Voice 2FA
+                    </div>
+                  )}
                   <div className="menu-item" style={{ padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', color: '#ff4d4d', textAlign: 'center' }} onClick={() => {
                     if (onLogout) {
                       onLogout();
