@@ -435,63 +435,42 @@ export default function ChatWindow({ user, onLogout }) {
   };
 
   const renderDatabaseTab = () => {
-    const currentTable = dbTables.find(t => t.name === selectedTable);
     return (
       <div className="tab-content database-tab">
         <h2 className="tab-title">Database Explorer</h2>
-        <p className="tab-subtitle">Browse the enterprise database tables and preview data.</p>
+        <p className="tab-subtitle">Browse the enterprise schema and data models.</p>
         
         {dbLoading ? (
           <div className="tab-loading">Loading tables...</div>
         ) : (
-          <>
-            {/* Table selector pills */}
-            <div className="table-pills">
-              {dbTables.map(t => (
-                <button 
-                  key={t.name} 
-                  className={`table-pill ${selectedTable === t.name ? 'active' : ''}`}
-                  onClick={() => setSelectedTable(t.name)}
-                >
-                  {t.name}
-                  <span className="pill-count">{t.row_count}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Table preview */}
-            {currentTable && (
-              <div className="db-table-container glass-panel">
-                <div className="db-table-header">
-                  <span className="db-table-name">{currentTable.name}</span>
-                  <span className="db-table-info">{currentTable.row_count} rows · {currentTable.columns.length} columns</span>
+          <div className="schema-grid">
+            {dbTables.map(t => (
+              <div key={t.name} className="schema-card glass-panel glass-panel-hover">
+                <div className="schema-card-header">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                    <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                  </svg>
+                  <h3>{t.name}</h3>
+                  <span className="row-badge">{t.row_count} rows</span>
                 </div>
-                <div className="db-table-scroll">
-                  <table className="db-table">
-                    <thead>
-                      <tr>
-                        {currentTable.column_names.map((col, i) => (
-                          <th key={i}>
-                            {col}
-                            <span className="col-type">{currentTable.columns[i]?.type}</span>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {currentTable.preview_rows.map((row, ri) => (
-                        <tr key={ri}>
-                          {row.map((val, ci) => (
-                            <td key={ci}>{val != null ? String(val) : <span className="null-val">NULL</span>}</td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="schema-columns">
+                  {t.columns && t.columns.map((col, i) => (
+                    <div key={i} className="schema-column-row">
+                      <span className="col-name">{col.name}</span>
+                      <span className="col-type">{col.type}</span>
+                    </div>
+                  ))}
+                  {/* Fallback if backend doesn't provide structured columns array yet, but uses column_names */}
+                  {(!t.columns && t.column_names) && t.column_names.map((col, i) => (
+                    <div key={i} className="schema-column-row">
+                      <span className="col-name">{col}</span>
+                      <span className="col-type">ANY</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
-          </>
+            ))}
+          </div>
         )}
       </div>
     );
@@ -763,305 +742,249 @@ export default function ChatWindow({ user, onLogout }) {
       {/* GLOBAL SCREEN-WANDERING MASCOT */}
       {/* GLOBAL SCREEN-WANDERING MASCOT REMOVED */}
       
-      {/* 1. LEFT SIDEBAR */}
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <div className="sidebar-logo">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-              <polyline points="4 20 4 4 14 20 20 20 20 4" />
-            </svg>
-          </div>
-          <span className="sidebar-title">Nova AI</span>
-        </div>
-        
-        <nav className="sidebar-nav">
-          <div className={`nav-item ${activeTab === 'Chat' ? 'active' : ''}`} onClick={() => setActiveTab('Chat')}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Chat
-          </div>
-          <div className={`nav-item ${activeTab === 'Database' ? 'active' : ''}`} onClick={() => setActiveTab('Database')}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3v-14"/></svg>
-            Database
-          </div>
-          <div className={`nav-item ${activeTab === 'Analytics' ? 'active' : ''}`} onClick={() => setActiveTab('Analytics')}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-4"/></svg>
-            Analytics
-          </div>
-
-          <div className="nav-section-title">History</div>
-          <div className={`nav-item ${activeTab === 'Recent Queries' ? 'active' : ''}`} onClick={() => setActiveTab('Recent Queries')}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Recent Queries
-          </div>
-          <div className={`nav-item ${activeTab === 'Saved Reports' ? 'active' : ''}`} onClick={() => setActiveTab('Saved Reports')}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-            Saved Reports
-          </div>
-        </nav>
-
-        <div className="user-profile-container" style={{ position: 'relative' }}>
-          <div className="user-profile-card" onClick={() => setShowProfileMenu(!showProfileMenu)} style={{ cursor: 'pointer' }}>
-            <div className="user-avatar">
-              {userName.charAt(0).toUpperCase()}
-              <div className="online-indicator" />
+      <main className="main-content" style={{ width: '100%' }}>
+        {/* NEW TOP GLASS NAVIGATION */}
+        <nav className="glass-nav-container">
+          <div className="glass-nav-cards">
+            <div 
+              className={`glass-nav-card ${activeTab === 'Chat' ? 'active' : ''}`} 
+              onClick={() => setActiveTab('Chat')}
+            >
+              <div className="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+              <div className="card-label">Chat</div>
             </div>
-            <div className="user-details">
-              <span className="user-name">{userName}</span>
-              <span className="user-role">Enterprise Admin</span>
+            <div 
+              className={`glass-nav-card ${activeTab === 'Database' ? 'active' : ''}`} 
+              onClick={() => setActiveTab('Database')}
+            >
+              <div className="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>
+              <div className="card-label">Database</div>
+            </div>
+            <div 
+              className={`glass-nav-card ${activeTab === 'Analytics' ? 'active' : ''}`} 
+              onClick={() => setActiveTab('Analytics')}
+            >
+              <div className="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+              <div className="card-label">Analytics</div>
             </div>
           </div>
-          
-          {showProfileMenu && (
-            <div className="profile-menu glass-panel" style={{
-              position: 'absolute',
-              bottom: '100%',
-              left: '0',
-              width: '100%',
-              marginBottom: '8px',
-              padding: '8px 0',
-              zIndex: 100,
-              display: 'flex',
-              flexDirection: 'column'
-            }}>
-              <div className="menu-item" style={{ padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', color: '#ff4d4d', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={handleLogoutClick}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                Sign Out
-              </div>
-            </div>
-          )}
-        </div>
-      </aside>
 
-      {/* 2. MAIN CONTENT AREA */}
-      <main className="main-content">
-        <div className="neurovia-orb-container">
-          <ParticleSphere isListening={isListening || isNovaActive} />
-        </div>
-
-        <header className="top-navigation">
-          <div className="workspace-dropdown-container" style={{ position: 'relative' }}>
-            <div className="workspace-selector glass-panel glass-panel-hover" onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)} style={{ cursor: 'pointer' }}>
-              {activeWorkspace}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ transform: showWorkspaceMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-            
-            {showWorkspaceMenu && (
-              <div className="profile-menu glass-panel" style={{
-                position: 'absolute',
-                top: '110%',
-                left: '0',
-                width: '100%',
-                minWidth: '200px',
-                padding: '8px 0',
-                zIndex: 100,
-                display: 'flex',
-                flexDirection: 'column'
-              }}>
-                <div style={{ padding: '8px 16px', fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Switch Data Source</div>
-                <div className="menu-item" style={{ padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setActiveWorkspace('Acme Corp Workspace'); setShowWorkspaceMenu(false); }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: activeWorkspace === 'Acme Corp Workspace' ? 'var(--accent-green)' : 'transparent' }}></div>
-                  Acme Corp (Production)
+          <div className="top-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="user-profile-nav" onClick={() => setShowProfileMenu(!showProfileMenu)} style={{ cursor: 'pointer', position: 'relative' }}>
+              <div className="user-avatar-small">{userName.charAt(0).toUpperCase()}</div>
+              {showProfileMenu && (
+                <div className="profile-menu glass-panel" style={{ position: 'absolute', top: '120%', right: '0', padding: '8px 0', zIndex: 100 }}>
+                  <div className="menu-item" style={{ padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', color: '#ff4d4d' }} onClick={() => {
+                    localStorage.removeItem('enterprise_user_name');
+                    window.location.reload();
+                  }}>
+                    Sign Out
+                  </div>
                 </div>
-                <div className="menu-item" style={{ padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setActiveWorkspace('Global Tech Workspace'); setShowWorkspaceMenu(false); }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: activeWorkspace === 'Global Tech Workspace' ? 'var(--accent-green)' : 'transparent' }}></div>
-                  Global Tech (Staging)
-                </div>
-                <div className="menu-item" style={{ padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setActiveWorkspace('Personal Demo'); setShowWorkspaceMenu(false); }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: activeWorkspace === 'Personal Demo' ? 'var(--accent-green)' : 'transparent' }}></div>
-                  Personal Demo
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="top-actions">
-            <button className="icon-btn" title="View Schema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></button>
-            <button className="icon-btn" onClick={async () => {
+              )}
+            </div>
+            <button className="icon-btn danger-hover" onClick={async () => {
               await clearSession(sessionIdRef.current);
               setMessages([]);
               setActiveSql(null);
               setActiveChart(null);
               setQueryMetrics(null);
             }} title="Clear Session"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
-            <button className="icon-btn danger-hover" onClick={() => {
-              localStorage.removeItem('enterprise_user_name');
-              setUserName('');
-              setMessages([]);
-              setActiveSql(null);
-              setActiveChart(null);
-              setQueryMetrics(null);
-            }} title="Logout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
           </div>
-        </header>
+        </nav>
+
+        {activeTab === 'Chat' && (
+          <div className="neurovia-orb-container">
+            <ParticleSphere isListening={isListening || isNovaActive} />
+          </div>
+        )}
 
         <div className="chat-scroll-area">
           {renderTabContent()}
         </div>
 
-        {/* Floating Input Dock */}
-        <div className="input-dock">
-          <div className={`input-container ${isNovaActive ? 'nova-active' : ''}`}>
-            <button 
-              className={`orb-btn ${isListening ? 'listening' : ''}`}
-              onClick={toggleListening}
-              title={isListening ? "Listening... (click to stop)" : "Click to speak"}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                <line x1="12" y1="19" x2="12" y2="23"/>
-                <line x1="8" y1="23" x2="16" y2="23"/>
-              </svg>
-            </button>
-            <input
-              type="text"
-              className="text-input"
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleSendFromInput();
-                }
-              }}
-              placeholder={isListening ? "Listening... speak your question" : isReady ? "Say 'Hey Nova' or type a question..." : "Ask Nova anything..."}
-            />
-            <button className="send-btn" onClick={handleSendFromInput} disabled={!input.trim()}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="18" height="18">
-                <line x1="22" y1="2" x2="11" y2="13"/>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
-            </button>
+        {activeTab === 'Chat' && (
+          <div className="input-dock">
+            <div className={`input-container ${isNovaActive ? 'nova-active' : ''}`}>
+              <button 
+                className={`orb-btn ${isListening ? 'listening' : ''}`}
+                onClick={toggleListening}
+                title={isListening ? "Listening... (click to stop)" : "Click to speak"}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="23"/>
+                  <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+              </button>
+              <input
+                type="text"
+                className="text-input"
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSendFromInput();
+                  }
+                }}
+                placeholder={isListening ? "Listening... speak your question" : isReady ? "Say 'Hey Nova' or type a question..." : "Ask Nova anything..."}
+              />
+              <button className="send-btn" onClick={handleSendFromInput} disabled={!input.trim()}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+                  <line x1="22" y1="2" x2="11" y2="13"/>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+              </button>
+            </div>
+            {isListening && (
+              <div className="status-text listening-text">
+                <span className="pulse-dot"></span>
+                Nova is listening... Speak now
+              </div>
+            )}
+            {isNovaActive && !isListening && (
+              <div className="status-text active-text">
+                <span className="pulse-dot active-dot"></span>
+                Nova is processing...
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </main>
 
-      {/* 3. RIGHT INSIGHTS PANEL */}
-      <aside className="insights-panel">
-        {!activeSql && !activeChart ? (
-          <div className="empty-insights">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-            <p>Live Dashboard<br/>Execute a query to see insights.</p>
-          </div>
-        ) : (
-          <>
-            {/* Chart Visualization — Bigger & Premium */}
-            {activeChart && activeChart.type && (
-              <div 
-                className="insight-card glass-panel chart-card-main" 
-                onClick={() => openChartModal(activeChart)}
-                title="Click to expand details"
-              >
-                <div className="panel-title">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                  Visualization
-                  <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>Click to expand ↗</span>
+      {activeTab === 'Chat' && (
+        <aside className="right-sidebar">
+          {(!activeChart && !queryMetrics) ? (
+            <div className="empty-insights">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" width="48" height="48" style={{ opacity: 0.3, marginBottom: '16px' }}>
+                <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                <polyline points="2 17 12 22 22 17" />
+                <polyline points="2 12 12 17 22 12" />
+              </svg>
+              <p>Ask a question to see insights here.</p>
+            </div>
+          ) : (
+            <>
+              <h3 className="section-title">Query Results</h3>
+              
+              {/* Main Chart Visualization */}
+              {activeChart && (
+                <div className="insight-card chart-visualization glass-panel glass-panel-hover glow-border" onClick={() => openChartModal(activeChart)}>
+                  <div className="chart-header">
+                    <span className="chart-title">{activeChart.title}</span>
+                    <button className="icon-btn-small" onClick={(e) => { e.stopPropagation(); openChartModal(activeChart); }} title="Expand Chart">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                    </button>
+                  </div>
+                  <div className="chart-wrapper">
+                    {activeChart.type === 'bar' && (
+                      <Bar 
+                        data={{
+                          labels: activeChart.labels,
+                          datasets: [{
+                            label: activeChart.datasets[0].label,
+                            data: activeChart.datasets[0].data,
+                            backgroundColor: (ctx) => {
+                              const chart = ctx.chart;
+                              const {ctx: c, chartArea} = chart;
+                              if (!chartArea) return 'rgba(0, 229, 255, 0.6)';
+                              const gradient = c.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                              gradient.addColorStop(0, 'rgba(0, 229, 255, 0.3)');
+                              gradient.addColorStop(1, 'rgba(176, 85, 255, 0.8)');
+                              return gradient;
+                            },
+                            borderColor: '#B055FF',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                          }]
+                        }} 
+                        options={{ responsive: true, plugins: { legend: { display: false }, title: { display: true, text: activeChart.title, color: '#fff', font: { size: 13 } } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.03)' } }, x: { ticks: { color: '#8A9BAE', maxRotation: 45 }, grid: { display: false } } } }}
+                      />
+                    )}
+                    {activeChart.type === 'line' && (
+                      <Line 
+                        data={{
+                          labels: activeChart.labels,
+                          datasets: [{
+                            label: activeChart.datasets[0].label,
+                            data: activeChart.datasets[0].data,
+                            borderColor: '#00E5FF',
+                            backgroundColor: (ctx) => {
+                              const chart = ctx.chart;
+                              const {ctx: c, chartArea} = chart;
+                              if (!chartArea) return 'rgba(0, 229, 255, 0.2)';
+                              const gradient = c.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                              gradient.addColorStop(0, 'rgba(0, 229, 255, 0)');
+                              gradient.addColorStop(1, 'rgba(0, 229, 255, 0.3)');
+                              return gradient;
+                            },
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#00E5FF',
+                            pointBorderColor: '#060A0F',
+                            pointBorderWidth: 2,
+                          }]
+                        }} 
+                        options={{ responsive: true, plugins: { legend: { display: false }, title: { display: true, text: activeChart.title, color: '#fff', font: { size: 13 } } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.03)' } }, x: { ticks: { color: '#8A9BAE', maxRotation: 45 }, grid: { display: false } } } }}
+                      />
+                    )}
+                    {activeChart.type === 'pie' && (
+                      <Pie 
+                        data={{
+                          labels: activeChart.labels,
+                          datasets: [{
+                            data: activeChart.datasets[0].data,
+                            backgroundColor: ['#00E5FF', '#B055FF', '#FF007F', '#00FFAA', '#FFB800', '#0080FF'],
+                            borderWidth: 2,
+                            borderColor: '#0A0F1A',
+                          }]
+                        }} 
+                        options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#8A9BAE', padding: 12 } }, title: { display: true, text: activeChart.title, color: '#fff', font: { size: 13 } } } }}
+                      />
+                    )}
+                  </div>
                 </div>
-                <div style={{ padding: '16px', minHeight: '220px' }}>
-                  {activeChart.type === 'bar' && (
-                    <Bar 
-                      data={{
-                        labels: activeChart.labels,
-                        datasets: [{
-                          label: activeChart.datasets[0].label,
-                          data: activeChart.datasets[0].data,
-                          backgroundColor: (ctx) => {
-                            const chart = ctx.chart;
-                            const {ctx: c, chartArea} = chart;
-                            if (!chartArea) return 'rgba(0, 229, 255, 0.6)';
-                            const gradient = c.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-                            gradient.addColorStop(0, 'rgba(0, 229, 255, 0.3)');
-                            gradient.addColorStop(1, 'rgba(176, 85, 255, 0.8)');
-                            return gradient;
-                          },
-                          borderColor: '#B055FF',
-                          borderWidth: 1,
-                          borderRadius: 6,
-                        }]
-                      }} 
-                      options={{ responsive: true, plugins: { legend: { display: false }, title: { display: true, text: activeChart.title, color: '#fff', font: { size: 13 } } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.03)' } }, x: { ticks: { color: '#8A9BAE', maxRotation: 45 }, grid: { display: false } } } }}
-                    />
-                  )}
-                  {activeChart.type === 'line' && (
-                    <Line 
-                      data={{
-                        labels: activeChart.labels,
-                        datasets: [{
-                          label: activeChart.datasets[0].label,
-                          data: activeChart.datasets[0].data,
-                          borderColor: '#00E5FF',
-                          backgroundColor: (ctx) => {
-                            const chart = ctx.chart;
-                            const {ctx: c, chartArea} = chart;
-                            if (!chartArea) return 'rgba(0, 229, 255, 0.2)';
-                            const gradient = c.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-                            gradient.addColorStop(0, 'rgba(0, 229, 255, 0)');
-                            gradient.addColorStop(1, 'rgba(0, 229, 255, 0.3)');
-                            return gradient;
-                          },
-                          tension: 0.4,
-                          fill: true,
-                          pointRadius: 4,
-                          pointBackgroundColor: '#00E5FF',
-                          pointBorderColor: '#060A0F',
-                          pointBorderWidth: 2,
-                        }]
-                      }} 
-                      options={{ responsive: true, plugins: { legend: { display: false }, title: { display: true, text: activeChart.title, color: '#fff', font: { size: 13 } } }, scales: { y: { ticks: { color: '#8A9BAE' }, grid: { color: 'rgba(255,255,255,0.03)' } }, x: { ticks: { color: '#8A9BAE' }, grid: { display: false } } } }}
-                    />
-                  )}
-                  {activeChart.type === 'pie' && (
-                    <Pie 
-                      data={{
-                        labels: activeChart.labels,
-                        datasets: [{
-                          data: activeChart.datasets[0].data,
-                          backgroundColor: ['#00E5FF', '#B055FF', '#FF007F', '#00FFAA', '#FFB800', '#0080FF'],
-                          borderWidth: 2,
-                          borderColor: '#0A0F1A',
-                        }]
-                      }} 
-                      options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#8A9BAE', padding: 12 } }, title: { display: true, text: activeChart.title, color: '#fff', font: { size: 13 } } } }}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
+              )}
 
-            {/* Compact Metrics Row */}
-            {queryMetrics && (
-              <div className="insight-card glass-panel compact-metrics">
-                <div className="compact-metric">
-                  <span className="compact-metric-value">{queryMetrics.rows}</span>
-                  <span className="compact-metric-label">Rows</span>
+              {/* Compact Metrics Row */}
+              {queryMetrics && (
+                <div className="insight-card glass-panel compact-metrics">
+                  <div className="compact-metric">
+                    <span className="compact-metric-value">{queryMetrics.rows}</span>
+                    <span className="compact-metric-label">Rows</span>
+                  </div>
+                  <div className="compact-metric-divider" />
+                  <div className="compact-metric">
+                    <span className="compact-metric-value">{queryMetrics.time}</span>
+                    <span className="compact-metric-label">Time</span>
+                  </div>
+                  <div className="compact-metric-divider" />
+                  <div className="compact-metric">
+                    <span className="compact-metric-value" style={{ color: 'var(--accent-green)' }}>{queryMetrics.confidence}</span>
+                    <span className="compact-metric-label">Confidence</span>
+                  </div>
                 </div>
-                <div className="compact-metric-divider" />
-                <div className="compact-metric">
-                  <span className="compact-metric-value">{queryMetrics.time}</span>
-                  <span className="compact-metric-label">Time</span>
-                </div>
-                <div className="compact-metric-divider" />
-                <div className="compact-metric">
-                  <span className="compact-metric-value" style={{ color: 'var(--accent-green)' }}>{queryMetrics.confidence}</span>
-                  <span className="compact-metric-label">Confidence</span>
-                </div>
-              </div>
-            )}
+              )}
 
-            {/* Collapsed SQL Accordion */}
-            {activeSql && (
-              <details className="sql-accordion glass-panel">
-                <summary className="sql-accordion-header">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-                  View Generated SQL
-                </summary>
-                <div className="sql-accordion-body">
-                  {activeSql}
-                </div>
-              </details>
-            )}
-          </>
-        )}
-      </aside>
+              {/* Collapsed SQL Accordion */}
+              {activeSql && (
+                <details className="sql-accordion glass-panel">
+                  <summary className="sql-accordion-header">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    View Generated SQL
+                  </summary>
+                  <div className="sql-accordion-body">
+                    {activeSql}
+                  </div>
+                </details>
+              )}
+            </>
+          )}
+        </aside>
+      )}
 
       {/* ===== CHART DETAIL MODAL ===== */}
       {isChartModalOpen && activeChart && (

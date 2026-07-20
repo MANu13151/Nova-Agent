@@ -91,15 +91,6 @@ export default function MessageBubble({ message, onPlayAudio, isPlaying }) {
         {/* AI Action Bar / Details */}
         {!isUser && message.sql && (
           <div className="ai-card-footer">
-            <div className="safe-badge">
-              <span className="safe-dot"></span>
-              Safe Query
-            </div>
-            
-            <button className="text-btn" onClick={() => setShowSql(!showSql)}>
-              {showSql ? 'Hide SQL' : 'Preview SQL'}
-            </button>
-            
             <button 
               className="text-btn explain-btn" 
               onClick={handleExplain}
@@ -122,12 +113,7 @@ export default function MessageBubble({ message, onPlayAudio, isPlaying }) {
           </div>
         )}
 
-        {/* Expanded SQL Preview */}
-        {!isUser && message.sql && showSql && (
-          <div className="sql-preview-block">
-            <code>{message.sql}</code>
-          </div>
-        )}
+
 
         {/* Expanded Explanation */}
         {!isUser && message.sql && showExplanation && (

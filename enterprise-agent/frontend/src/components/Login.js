@@ -3,6 +3,10 @@ import './Login.css';
 import SaturnRings from './SaturnRings';
 
 export default function Login({ onLogin }) {
+  const [showModal, setShowModal] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userData, setUserData] = useState(null);
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -25,11 +29,19 @@ export default function Login({ onLogin }) {
       }
 
       const data = await response.json();
-      onLogin(data.user);
+      setUserData(data.user);
+      setIsAuthenticated(true);
+      setShowModal(false);
     } catch (err) {
-      setError('Invalid username or password. Please try again.');
+      setError('Invalid username or password.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePlanetClick = () => {
+    if (userData) {
+      onLogin(userData);
     }
   };
 
@@ -42,7 +54,7 @@ export default function Login({ onLogin }) {
       </div>
 
       {/* Top Navigation */}
-      <nav className="landing-nav">
+      <nav className="landing-nav" style={{ opacity: isAuthenticated ? 0 : 1, transition: 'opacity 1s' }}>
         <div className="landing-logo">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
             <polyline points="4 20 4 4 14 20 20 20 20 4" />
@@ -56,46 +68,30 @@ export default function Login({ onLogin }) {
           <span>Docs</span>
         </div>
         <div className="landing-actions">
-          <button className="btn-text">Sign In</button>
-          <button className="btn-primary">Sign Up</button>
+          <button className="btn-text" onClick={() => setShowModal(true)}>Sign In</button>
+          <button className="btn-primary" onClick={() => setShowModal(true)}>Sign Up</button>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <main className="landing-hero">
-        <h1 className="hero-title">Start Using AI<br/>Chatbot Now</h1>
-        <p className="hero-desc">
-          Start your digital transformation journey with an adaptive and<br/>efficient AI chatbot.
-        </p>
-        
-        <form onSubmit={handleSubmit} className="landing-form" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-          {error && <div style={{ color: '#FF3B30', marginBottom: '10px', fontSize: '0.9rem', textAlign: 'center' }}>{error}</div>}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-            <input 
-              type="text" 
-              value={username} 
-              onChange={(e) => setUsername(e.target.value)} 
-              placeholder="Username (e.g. admin)" 
-              required 
-              style={{ flex: 1 }}
-            />
+      {/* Main Content Area */}
+      <main className="landing-hero" style={{ height: 'calc(100vh - 200px)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        {!isAuthenticated ? (
+          <div style={{ opacity: showModal ? 0 : 1, transition: 'opacity 0.3s' }}>
+            <h1 className="hero-title">Start Using AI<br/>Chatbot Now</h1>
+            <p className="hero-desc">
+              Start your digital transformation journey with an adaptive and<br/>efficient AI chatbot.
+            </p>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              placeholder="Password (e.g. admin123)" 
-              required 
-              style={{ flex: 1 }}
-            />
-            <button type="submit" disabled={isLoading}>{isLoading ? '...' : '→'}</button>
+        ) : (
+          <div className="planet-container" onClick={handlePlanetClick}>
+            <div className="dark-planet"></div>
+            <div className="planet-hint">Tap to Enter</div>
           </div>
-        </form>
+        )}
       </main>
 
       {/* Footer */}
-      <footer className="landing-footer">
+      <footer className="landing-footer" style={{ opacity: isAuthenticated ? 0 : 1, transition: 'opacity 1s', pointerEvents: isAuthenticated ? 'none' : 'auto' }}>
         <div className="footer-col brand-col">
           <div className="landing-logo" style={{ marginBottom: '16px' }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
@@ -127,6 +123,36 @@ export default function Login({ onLogin }) {
           </form>
         </div>
       </footer>
+
+      {/* Sign In Modal */}
+      {showModal && !isAuthenticated && (
+        <div className="login-modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="login-modal" onClick={e => e.stopPropagation()}>
+            <h2>Sign In</h2>
+            <p>Welcome back to Nova</p>
+            <form onSubmit={handleSubmit} className="modal-form">
+              {error && <div className="modal-error">{error}</div>}
+              <input 
+                type="text" 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
+                placeholder="Username (e.g. admin)" 
+                required 
+              />
+              <input 
+                type="password" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                placeholder="Password (e.g. admin123)" 
+                required 
+              />
+              <button type="submit" className="btn-primary modal-submit" disabled={isLoading}>
+                {isLoading ? 'Authenticating...' : 'Enter Nova'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
