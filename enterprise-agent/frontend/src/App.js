@@ -17,6 +17,16 @@ function App() {
   const handleLogin = (userData) => {
     localStorage.setItem('nova_user', JSON.stringify(userData));
     setUser(userData);
+    
+    // Play voice greeting
+    try {
+      const greeting = `Welcome, ${userData.display_name || userData.username}`;
+      const audioUrl = `${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/tts?text=${encodeURIComponent(greeting)}`;
+      const audio = new Audio(audioUrl);
+      audio.play().catch(e => console.log('Audio playback prevented by browser policy:', e));
+    } catch (err) {
+      console.log('Failed to play greeting:', err);
+    }
   };
 
   const handleLogout = () => {
