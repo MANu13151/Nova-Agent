@@ -87,7 +87,7 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
                   setTranscript('');
                   if (stripped.length > 0) {
                     onCommandRef.current(stripped);
-                    setTimeout(() => setIsNovaActive(false), 2000);
+                    setIsNovaActive(false); // Instantly turn off active UI state, backend is now processing
                   } else {
                     manualModeRef.current = true;
                     silenceTimerRef.current = setTimeout(() => {
@@ -95,7 +95,7 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
                       setIsNovaActive(false);
                       setTranscript('');
                       try { recognitionRef.current?.stop(); } catch(e) {}
-                    }, 5000);
+                    }, 3500); // 3.5 seconds to speak after saying just 'Hey Nova'
                   }
                 } else {
                   setTranscript('');
@@ -111,7 +111,7 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
                     setIsNovaActive(false);
                     setTranscript('');
                     try { recognitionRef.current?.stop(); } catch(e) {}
-                  }, 5000);
+                  }, 4000); // Reduce from 5s to 4s
                 }
               }
             }
@@ -144,7 +144,6 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
                 }
               }, 400);
             } else {
-              setTimeout(() => setIsNovaActive(false), 1500);
               cooldownRef.current = true;
               setTimeout(() => { cooldownRef.current = false; }, 1500);
             }
