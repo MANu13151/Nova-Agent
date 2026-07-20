@@ -97,6 +97,7 @@ def init_db():
         password TEXT NOT NULL,
         display_name TEXT NOT NULL,
         role TEXT DEFAULT 'analyst',
+        voice_enrolled BOOLEAN DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     """)

@@ -12,10 +12,36 @@ import json
 router = APIRouter(prefix="/api")
 
 # --- AUTH & SAVED QUERIES ---
+from fastapi import File, UploadFile, Form
+import os
+import shutil
+import sqlite3
 
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    display_name: str
+
+@router.post("/auth/register")
+async def register(req: RegisterRequest):
+    conn = get_db_connection()
+    try:
+        conn.execute("INSERT INTO users (username, password, display_name) VALUES (?, ?, ?)", 
+                     (req.username, req.password, req.display_name))
+        conn.commit()
+        user = conn.execute("SELECT * FROM users WHERE username = ?", (req.username,)).fetchone()
+        conn.close()
+        return {"status": "success", "user": dict(user)}
+    except sqlite3.IntegrityError:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Username already exists")
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/auth/login")
 async def login(req: LoginRequest):
@@ -25,6 +51,42 @@ async def login(req: LoginRequest):
     if user:
         return {"token": f"mock-jwt-token-{user['id']}", "user": dict(user)}
     raise HTTPException(status_code=401, detail="Invalid username or password")
+
+@router.post("/auth/voice/register")
+async def register_voice(username: str = Form(...), file: UploadFile = File(...)):
+    # Simulated voice enrollment
+    conn = get_db_connection()
+    user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+    if not user:
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Save the file (mock biometric feature extraction)
+    os.makedirs("voice_prints", exist_ok=True)
+    file_location = f"voice_prints/{username}.webm"
+    with open(file_location, "wb+") as file_object:
+        shutil.copyfileobj(file.file, file_object)
+        
+    conn.execute("UPDATE users SET voice_enrolled = 1 WHERE username = ?", (username,))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "Voice registered successfully"}
+
+@router.post("/auth/voice/login")
+async def login_voice(file: UploadFile = File(...)):
+    # Simulated voice login: In a real scenario we extract features and compare against DB.
+    # For this prototype, we'll just log in the first user who has voice_enrolled=1,
+    # or you could pass username. Let's pass username for simplicity of prototype,
+    # or if we want true biometric, we identify them from the voice!
+    # Let's just find ANY user with voice_enrolled=1 (simulating identification)
+    conn = get_db_connection()
+    user = conn.execute("SELECT * FROM users WHERE voice_enrolled = 1 ORDER BY id DESC LIMIT 1").fetchone()
+    conn.close()
+    
+    if user:
+        return {"token": f"mock-jwt-token-{user['id']}", "user": dict(user)}
+    
+    raise HTTPException(status_code=401, detail="Voice not recognized or no voice enrolled")
 
 class SavedQuery(BaseModel):
     id: str
@@ -358,6 +420,17 @@ async def list_tables_endpoint():
         if conn:
             conn.close()
 
+
+@router.get("/tts")
+async def get_tts(text: str = Query(...)):
+    """
+    Generates TTS audio for the given text and streams it back.
+    """
+    try:
+        audio_stream = text_to_speech_mp3(text)
+        return StreamingResponse(audio_stream, media_type="audio/mpeg")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/chat/session/{session_id}")
 async def clear_session_endpoint(session_id: str):
