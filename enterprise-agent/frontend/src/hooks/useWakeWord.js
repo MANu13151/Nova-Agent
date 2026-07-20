@@ -1,20 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 
-/**
- * useWakeWord — Siri/Alexa-style wake word detection for the browser.
- * 
- * Uses Web Audio API (lightweight, no flicker) to continuously monitor
- * mic volume. Only starts the heavy SpeechRecognition engine when voice
- * activity is detected. Checks for wake word in the transcript.
- * 
- * Returns:
- *  - isReady: mic permission granted and monitoring
- *  - isListening: SpeechRecognition is actively transcribing
- *  - isNovaActive: wake word was detected
- *  - transcript: current interim transcript
- *  - startManual(): manually trigger listening (button click)
- *  - stopManual(): manually stop listening
- */
 export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova', 'innova'] }) {
   const [isReady, setIsReady] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -40,30 +25,25 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
   // Build wake word regex
   const wakeWordRegex = new RegExp(`\\b(${wakeWords.join('|')})\\b`, 'i');
 
-  // Initialize microphone + audio monitoring
   useEffect(() => {
     let mounted = true;
 
     const init = async () => {
       try {
-        // 1. Get microphone stream
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         if (!mounted) { stream.getTracks().forEach(t => t.stop()); return; }
         streamRef.current = stream;
 
-        // 2. Set up AudioContext for volume monitoring
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const source = audioContext.createMediaStreamSource(stream);
         const analyser = audioContext.createAnalyser();
         analyser.fftSize = 512;
         analyser.smoothingTimeConstant = 0.8;
         source.connect(analyser);
-        // Don't connect to destination (no feedback)
 
         audioContextRef.current = audioContext;
         analyserRef.current = analyser;
 
-        // 3. Set up SpeechRecognition
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
           const recognition = new SpeechRecognition();
@@ -89,19 +69,17 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
 
             if (final) {
               const query = final.trim();
-              // Clear silence timer on final result
               if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
               
               if (manualModeRef.current) {
-                // Manual mode: send everything directly (no wake word needed)
                 setTranscript('');
                 if (query.length > 0) {
                   onCommandRef.current(query);
-                  setIsNovaActive(false);
                 }
+                // ALWAYS clear active state when exiting manual mode
+                setIsNovaActive(false);
                 manualModeRef.current = false;
               } else {
-                // Background mode: check for wake word
                 const lower = query.toLowerCase();
                 if (wakeWordRegex.test(lower)) {
                   setIsNovaActive(true);
@@ -111,10 +89,8 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
                     onCommandRef.current(stripped);
                     setTimeout(() => setIsNovaActive(false), 2000);
                   } else {
-                    // Enter active listening mode — start silence timer
                     manualModeRef.current = true;
                     silenceTimerRef.current = setTimeout(() => {
-                      // 5 seconds of silence — auto-stop
                       manualModeRef.current = false;
                       setIsNovaActive(false);
                       setTranscript('');
@@ -126,10 +102,8 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
                 }
               }
             } else {
-              // Show interim transcription & reset silence timer
               if (manualModeRef.current || wakeWordRegex.test(interim.toLowerCase())) {
                 setTranscript(interim);
-                // Reset silence timer on any interim speech
                 if (manualModeRef.current && silenceTimerRef.current) {
                   clearTimeout(silenceTimerRef.current);
                   silenceTimerRef.current = setTimeout(() => {
@@ -147,7 +121,6 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
             if (event.error !== 'no-speech' && event.error !== 'aborted') {
               console.error('Speech error:', event.error);
             }
-            // Always clean up on error
             if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
             manualModeRef.current = false;
             setIsNovaActive(false);
@@ -159,16 +132,21 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
             isListeningRef.current = false;
             setIsListening(false);
             
-            if (mounted) {
-              // Always restart to keep background listening alive
+            if (manualModeRef.current) {
               setTimeout(() => {
                 if (!isListeningRef.current && recognitionRef.current) {
                   try {
                     isListeningRef.current = true;
                     recognitionRef.current.start();
-                  } catch(e) {}
+                  } catch(e) {
+                    isListeningRef.current = false;
+                  }
                 }
               }, 400);
+            } else {
+              setTimeout(() => setIsNovaActive(false), 1500);
+              cooldownRef.current = true;
+              setTimeout(() => { cooldownRef.current = false; }, 1500);
             }
           };
 
@@ -177,11 +155,43 @@ export default function useWakeWord({ onCommand, wakeWords = ['hey nova', 'nova'
 
         setIsReady(true);
 
-        // Start recognition immediately and run continuously
-        try {
-          isListeningRef.current = true;
-          recognition.start();
-        } catch (e) {}
+        // RESTORED VOLUME MONITOR to prevent Chrome from killing the engine,
+        // but drastically reduced FRAMES_TO_TRIGGER to prevent wake word clipping!
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        let voiceFrames = 0;
+        const VOICE_THRESHOLD = 20; // Lowered from 35 to wake up on quieter sounds
+        const FRAMES_TO_TRIGGER = 2; // Lowered from 8 for almost instant wake up
+
+        const monitorVolume = () => {
+          if (!mounted) return;
+          analyser.getByteFrequencyData(dataArray);
+          
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i];
+          }
+          const avgVolume = sum / dataArray.length;
+
+          if (avgVolume > VOICE_THRESHOLD && !isListeningRef.current && !cooldownRef.current) {
+            voiceFrames++;
+            if (voiceFrames >= FRAMES_TO_TRIGGER && recognitionRef.current) {
+              try {
+                isListeningRef.current = true;
+                recognitionRef.current.start();
+                voiceFrames = 0;
+              } catch (e) {
+                isListeningRef.current = false;
+                voiceFrames = 0;
+              }
+            }
+          } else {
+            voiceFrames = Math.max(0, voiceFrames - 1);
+          }
+
+          rafRef.current = requestAnimationFrame(monitorVolume);
+        };
+
+        monitorVolume();
 
       } catch (err) {
         console.warn('Microphone access denied or unavailable:', err);
