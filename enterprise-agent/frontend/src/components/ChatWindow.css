@@ -1,11 +1,12 @@
 /* ===== DESKTOP APP LAYOUT ===== */
 .app-layout {
-  display: grid;
-  grid-template-columns: 260px 1fr 340px;
+  display: flex;
+  flex-direction: row;
   height: 100vh;
   width: 100vw;
   background: var(--bg-primary);
   color: var(--text-primary);
+  position: relative;
   overflow: hidden;
 }
 
@@ -180,6 +181,7 @@
 /* ===== MAIN CONTENT AREA & BACKGROUND ORB ===== */
 .main-content {
   display: flex;
+  flex: 1;
   flex-direction: column;
   position: relative;
   background: var(--bg-primary);

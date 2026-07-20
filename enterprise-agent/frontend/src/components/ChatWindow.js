@@ -742,7 +742,7 @@ export default function ChatWindow({ user, onLogout }) {
       {/* GLOBAL SCREEN-WANDERING MASCOT */}
       {/* GLOBAL SCREEN-WANDERING MASCOT REMOVED */}
       
-      <main className="main-content" style={{ width: '100%' }}>
+      <main className="main-content">
         {/* NEW TOP GLASS NAVIGATION */}
         <nav className="glass-nav-container">
           <div className="glass-nav-cards">
