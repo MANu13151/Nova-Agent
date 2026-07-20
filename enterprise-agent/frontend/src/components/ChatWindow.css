@@ -9,6 +9,8 @@
   overflow: hidden;
 }
 
+
+
 /* ===== LEFT SIDEBAR ===== */
 .sidebar {
   background: var(--bg-secondary);
@@ -558,7 +560,9 @@
 
 
 /* ===== RIGHT INSIGHTS PANEL ===== */
-.insights-panel {
+.right-sidebar {
+  width: 350px;
+  flex-shrink: 0;
   background: var(--bg-secondary);
   border-left: 1px solid var(--glass-border);
   padding: 24px;

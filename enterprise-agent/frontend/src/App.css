@@ -19,3 +19,5 @@
   pointer-events: none;
   z-index: 0;
 }
+
+.chat-window { width: 100vw; height: 100vh; display: flex; flex-direction: column; position: relative; }
